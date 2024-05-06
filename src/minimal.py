@@ -241,6 +241,45 @@ class Minimal:
     def print_final_averages(self):
         pass
 
+    def pack(self, audio_chunk, video_chunk):
+        '''Construye un paquete que contenga un trozo de audio y un trozo de video.'''
+        # Concatenar los datos de audio y video en un solo paquete.
+        packed_audio = audio_chunk.tobytes()
+        packed_video = video_chunk.tobytes()
+        return packed_audio + packed_video
+
+    def unpack(self, packed_chunk):
+        '''Desempaqueta un paquete en trozos de audio y video.'''
+        # Separar los datos de audio y video del paquete recibido.
+        audio_chunk = np.frombuffer(packed_chunk[:audio_chunk_length], np.int16)
+        video_chunk = np.frombuffer(packed_chunk[audio_chunk_length:], dtype=video_dtype)
+        return audio_chunk, video_chunk
+
+    def send(self, packed_chunk):
+        '''Envía un paquete UDP.'''
+        # Envía el paquete a través del socket UDP.
+        audio_chunk_length = len(packed_chunk) // 2  # Tamaño del trozo de audio.
+        audio_packed = packed_chunk[:audio_chunk_length]
+        video_packed = packed_chunk[audio_chunk_length:]
+        self.sock.sendto(audio_packed, (args.destination_address, args.destination_port))
+        self.sock.sendto(video_packed, (args.destination_address, args.destination_port))
+
+    def receive(self):
+        '''Recibe un paquete UDP sin bloqueo.'''
+        # Recibe el paquete UDP.
+        audio_packed, _ = self.sock.recvfrom(audio_chunk_size)
+        video_packed, _ = self.sock.recvfrom(video_chunk_size)
+        return audio_packed + video_packed
+
+    def run(self):
+        '''Crea el flujo, instala la función de devolución de llamada y espera
+        una pulsación de tecla Enter.'''
+        # Configura y ejecuta el flujo de audio.
+        with self.stream(self._handler):
+            # Configura y ejecuta el flujo de video.
+            with video_stream():
+                input()  # Espera una entrada para salir.
+
 parser.add_argument("--show_stats", action="store_true", help="shows bandwith, CPU and quality statistics")
 parser.add_argument("--show_samples", action="store_true", help="shows samples values")
 
