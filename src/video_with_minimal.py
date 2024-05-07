@@ -158,25 +158,7 @@ class Minimal:
         '''Generates an output stream from the audio card.'''
         with sd.Stream(device=(args.input_device, args.output_device), samplerate=args.frames_per_second, blocksize=args.frames_per_chunk, dtype=np.int16, latency='low', channels=self.NUMBER_OF_CHANNELS, callback=self._handler):
             input("Press Enter to quit...")
-        
-    import cv2
-
-    def video_stream(self):
-        '''Generates a video stream from the camera.'''
-        cap = cv2.VideoCapture(0)  # Open default camera (you might need to adjust the index if you have multiple cameras)
-        while True:
-            ret, frame = cap.read()  # Read a frame from the camera
-            if not ret:
-                print("Error: Unable to capture frame")
-                break
-            # Send the frame to the other end of the communication (you need to implement this)
-            # For example, you could convert the frame to bytes and send it using sockets
-            # Implement your sending logic here
-            cv2.imshow('Video Stream', frame)  # Display the frame
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break  # Press 'q' to quit
-        cap.release()
-        cv2.destroyAllWindows()
+    
 
     def file_stream(self):
         '''Generates an output stream from a file.'''
