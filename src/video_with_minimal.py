@@ -41,18 +41,23 @@ parser.add_argument("-f", "--filename", type=str, help="Use a wav/oga/... file i
 parser.add_argument("-t", "--reading_time", type=int, help="Time reading data (mic or file) (only with effect if --show_stats or --show_data is used)")
 parser.add_argument("--show_stats", action="store_true", help="shows bandwith, CPU and quality statistics")
 parser.add_argument("--show_samples", action="store_true", help="shows samples values")
+parser.add_argument("--video_width", type=int, default=640, help="Video width")
+parser.add_argument("--video_height", type=int, default=480, help="Video height")
+parser.add_argument("--video_fps", type=float, default=30, help="Video frames per second")
+parser.add_argument("--video_chunk_size", type=int, default=1024, help="Size of video chunk in bytes")
 
 class Minimal:
-    MAX_PAYLOAD_BYTES = 32768  # The maximum UDP packet's payload.
-    NUMBER_OF_CHANNELS = 2  # The number of channels. Currently, in OSX systems NUMBER_OF_CHANNELS must be 1.
+    NUMBER_OF_CHANNELS = 2  # The number of audio channels. Currently, in OSX systems NUMBER_OF_CHANNELS must be 1.
 
     def __init__(self, args):
         ''' Constructor. Basically initializes the sockets stuff. '''
         logging.info(__doc__)
         logging.info(f"NUMBER_OF_CHANNELS = {self.NUMBER_OF_CHANNELS}")
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock_audio = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock_video = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.listening_endpoint = ("0.0.0.0", args.listening_port)
-        self.sock.bind(self.listening_endpoint)
+        self.sock_audio.bind(self.listening_endpoint)
+        self.sock_video.bind(("0.0.0.0", args.listening_port + 1))
         self.chunk_time = args.frames_per_chunk / args.frames_per_second
         logging.info(f"chunk_time = {self.chunk_time} seconds")
         self.zero_chunk = self.generate_zero_chunk()
@@ -66,33 +71,49 @@ class Minimal:
             self._handler = self._record_IO_and_play
             self.stream = self.mic_stream
 
-    def pack(self, audio_chunk, video_chunk):
-        '''Builds a packet's payloads with a chunk.'''
-        audio_packed = audio_chunk.tobytes()
-        video_packed = video_chunk.tobytes()
-        return audio_packed + video_packed
+    def pack_audio(self, audio_chunk):
+        '''Builds a packet's payload with an audio chunk.'''
+        return audio_chunk.tobytes()
 
-    def unpack(self, packed_chunk):
-        '''Unpack a packed_chunk.'''
-        audio_chunk_length = len(packed_chunk) // 2  # Assuming audio and video are of the same length
-        audio_chunk = np.frombuffer(packed_chunk[:audio_chunk_length], np.int16)
-        video_chunk = np.frombuffer(packed_chunk[audio_chunk_length:], np.int16)
-        return audio_chunk, video_chunk
-    
-    def send(self, packed_chunk):
-        '''Sends an UDP packet.'''
-        audio_chunk_length = len(packed_chunk) // 2  # Assuming audio and video are of the same length
-        audio_packed = packed_chunk[:audio_chunk_length]
-        video_packed = packed_chunk[audio_chunk_length:]
-        self.sock.sendto(audio_packed, (args.destination_address, args.destination_port))
-        self.sock.sendto(video_packed, (args.destination_address, args.destination_port))
+    def pack_video(self, video_chunk):
+        '''Builds a packet's payload with a video chunk.'''
+        packed_chunks = []
+        chunk_size = args.video_chunk_size
+        height, width, _ = video_chunk.shape
+        num_chunks = (height * width * 3) // chunk_size
+        for i in range(num_chunks):
+            start = i * chunk_size
+            end = min((i + 1) * chunk_size, height * width * 3)  # Ensure end doesn't exceed array size
+            packed_chunks.append(video_chunk[start:end].tobytes())
+        return packed_chunks
 
-    def receive(self):
-        '''Receives an UDP packet without blocking.'''
+    def unpack_audio(self, packed_chunk):
+        '''Unpack an audio packed_chunk.'''
+        return np.frombuffer(packed_chunk, np.int16)
+
+    def unpack_video(self, packed_chunk):
+        '''Unpack a video packed_chunk.'''
+        return np.frombuffer(packed_chunk, np.uint8).reshape((-1, args.video_width, 3))
+
+    def send_audio(self, packed_chunk):
+        '''Sends an UDP packet with audio payload.'''
+        self.sock_audio.sendto(packed_chunk, (args.destination_address, args.destination_port))
+
+    def send_video(self, packed_chunk):
+        '''Sends an UDP packet with video payload.'''
+        self.sock_video.sendto(packed_chunk, (args.destination_address, args.destination_port + 1))
+
+    def receive_audio(self):
+        '''Receives an UDP packet with audio payload without blocking.'''
         audio_chunk_size = args.frames_per_chunk * self.NUMBER_OF_CHANNELS * np.dtype(np.int16).itemsize
-        audio_packed, _ = self.sock.recvfrom(audio_chunk_size)
-        video_packed, _ = self.sock.recvfrom(audio_chunk_size)  # Assuming video chunk size is the same as audio chunk size
-        return audio_packed + video_packed
+        audio_packed, _ = self.sock_audio.recvfrom(audio_chunk_size)
+        return audio_packed
+
+    def receive_video(self):
+        '''Receives an UDP packet with video payload without blocking.'''
+        video_chunk_size = args.video_chunk_size
+        video_packed, _ = self.sock_video.recvfrom(video_chunk_size)
+        return video_packed
 
     def generate_zero_chunk(self):
         '''Generates a chunk with zeros that will be used when an inbound chunk is not available.'''
@@ -104,20 +125,29 @@ class Minimal:
         a chunk, and plays the chunk.
         '''
         if __debug__:
-            data = ADC.copy()
-            video_chunk = np.zeros_like(data)  # Create a video chunk with zeros
-            packed_chunk = self.pack(data, video_chunk)  # Pass both audio and video chunks
+            video_frame = cv2.VideoCapture(0).read()[1]
+            video_frame = cv2.resize(video_frame, (args.video_width, args.video_height))
+            video_frame = cv2.cvtColor(video_frame, cv2.COLOR_BGR2RGB)
+            video_chunk = np.asarray(video_frame)
         else:
-            packed_chunk = self.pack(ADC, np.zeros_like(ADC))  # Assuming video is all zeros
-        self.send(packed_chunk)
+            video_chunk = np.zeros((args.video_height, args.video_width, 3), dtype=np.uint8)
+        
+        audio_packed = self.pack_audio(ADC)
+        video_chunks = self.pack_video(video_chunk)
+        for chunk in video_chunks:
+            self.send_audio(audio_packed)
+            self.send_video(chunk)
+        
         try:
-            packed_chunk = self.receive()
-            audio_chunk, _ = self.unpack(packed_chunk)
-            # Reshape audio_chunk to (4096, 2)
-            audio_chunk = np.reshape(audio_chunk, (args.frames_per_chunk, self.NUMBER_OF_CHANNELS))
+            audio_packed = self.receive_audio()
+            video_packed = self.receive_video()
+            audio_chunk = self.unpack_audio(audio_packed)
+            video_chunk = self.unpack_video(video_packed)
         except (socket.timeout, BlockingIOError):
             audio_chunk = self.zero_chunk
+            video_chunk = np.zeros((args.frames_per_chunk, args.video_width, 3), dtype=np.uint8)  # Fix for video_chunk size
             logging.debug("playing zero chunk")
+        
         DAC[:] = audio_chunk
         if __debug__:
             print(next(spinner), end='\b', flush=True)
@@ -140,16 +170,26 @@ class Minimal:
         '''
         if __debug__:
             ADC = self.read_chunk_from_file()
-            packed_chunk = self.pack(ADC, np.zeros_like(ADC))  # Assuming video is all zeros
+            audio_packed = self.pack_audio(ADC)
+            video_packed = self.pack_video(np.zeros((args.video_height, args.video_width, 3), dtype=np.uint8))
+            self.send_audio(audio_packed)
+            self.send_video(video_packed)
         else:
-            packed_chunk = self.pack(DAC, np.zeros_like(DAC))  # Assuming video is all zeros
-        self.send(packed_chunk)
+            audio_packed = self.pack_audio(DAC)
+            video_packed = self.pack_video(np.zeros((args.video_height, args.video_width, 3), dtype=np.uint8))
+            self.send_audio(audio_packed)
+            self.send_video(video_packed)
+        
         try:
-            packed_chunk = self.receive()
-            audio_chunk, _ = self.unpack(packed_chunk)
+            audio_packed = self.receive_audio()
+            video_packed = self.receive_video()
+            audio_chunk = self.unpack_audio(audio_packed)
+            video_chunk = self.unpack_video(video_packed)
         except (socket.timeout, BlockingIOError):
             audio_chunk = self.zero_chunk
+            video_chunk = np.zeros((args.frames_per_chunk, args.video_width, 3), dtype=np.uint8)  # Fix for video_chunk size
             logging.debug("playing zero chunk")
+        
         DAC[:] = audio_chunk
         if __debug__:
             print(next(spinner), end='\b', flush=True)
@@ -157,46 +197,36 @@ class Minimal:
     def mic_stream(self):
         '''Generates an output stream from the audio card.'''
         with sd.Stream(device=(args.input_device, args.output_device), samplerate=args.frames_per_second, blocksize=args.frames_per_chunk, dtype=np.int16, latency='low', channels=self.NUMBER_OF_CHANNELS, callback=self._handler):
-            input("Press Enter to quit...")
-    
+            print("Press 'q' to quit...")
+            while True:
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+                time.sleep(0.1)  # Añadir un pequeño retraso para reducir el uso de la CPU
+
 
     def file_stream(self):
         '''Generates an output stream from a file.'''
         with sd.OutputStream(device=args.output_device, samplerate=args.frames_per_second, blocksize=args.frames_per_chunk, dtype=np.int16, channels=self.NUMBER_OF_CHANNELS, callback=self._handler):
-            input("Press Enter to quit...")
-                
+            print("Press 'q' to quit...")
+            while True:
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+                time.sleep(0.1)  # Añadir un pequeño retraso para reducir el uso de la CPU
+
     def run(self):
         '''Starts sending the playing chunks.'''
+        if not args.filename:
+            self.cap = cv2.VideoCapture(0)
         self.stream()
-
-def check_cameras_available():
-    cam = cv2.VideoCapture(0)
-    ret, _ = cam.read()
-    while True:
-        if ret:
-            ret, _ = cam.read()
-            if not ret:
-                print("Error: Unable to capture frame")
-                break
-            cv2.imshow('Video Stream', _)  # Muestra el frame
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break  # Presiona 'q' para salir
-    cam.release()
-    cv2.destroyAllWindows()
-    return ret
-
-
+        if not args.filename:
+            self.cap.release()
+            cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.list_devices:
         logging.info(sd.query_devices())
-        exit()
-
-    # Verificar si hay cámaras disponibles
-    if not check_cameras_available():
-        print("No se detectaron cámaras disponibles.")
         exit()
 
     intercom = Minimal(args)
