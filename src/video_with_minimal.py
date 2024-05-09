@@ -99,9 +99,10 @@ class Minimal:
         '''Sends an UDP packet with audio payload.'''
         self.sock_audio.sendto(packed_chunk, (args.destination_address, args.destination_port))
 
-    def send_video(self, packed_chunk):
-        '''Sends an UDP packet with video payload.'''
-        self.sock_video.sendto(packed_chunk, (args.destination_address, args.destination_port + 1))
+    def send_video(self, packed_chunks):
+        '''Sends UDP packets with video payload.'''
+        for chunk in packed_chunks:
+            self.sock_video.sendto(chunk, (args.destination_address, args.destination_port + 1))
 
     def receive_audio(self):
         '''Receives an UDP packet with audio payload without blocking.'''
@@ -124,19 +125,21 @@ class Minimal:
         chunk, sends the packet, receives a packet, unpacks it to get
         a chunk, and plays the chunk.
         '''
-        if __debug__:
-            video_frame = cv2.VideoCapture(0).read()[1]
+        video_capture = cv2.VideoCapture(0)
+        ret, video_frame = video_capture.read()  # Lee un fotograma del objeto VideoCapture
+
+        if ret:  # Verifica si la lectura fue exitosa
             video_frame = cv2.resize(video_frame, (args.video_width, args.video_height))
             video_frame = cv2.cvtColor(video_frame, cv2.COLOR_BGR2RGB)
             video_chunk = np.asarray(video_frame)
         else:
-            video_chunk = np.zeros((args.video_height, args.video_width, 3), dtype=np.uint8)
-        
+            video_chunk = np.zeros((args.video_height, args.video_width, 3), dtype=np.uint8)  # Si la lectura falla, crea un marco de ceros
+
         audio_packed = self.pack_audio(ADC)
         video_chunks = self.pack_video(video_chunk)
         for chunk in video_chunks:
             self.send_audio(audio_packed)
-            self.send_video(chunk)
+            self.send_video([chunk])
         
         try:
             audio_packed = self.receive_audio()
