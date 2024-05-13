@@ -76,15 +76,24 @@ class Minimal:
         return audio_chunk.tobytes()
 
     def pack_video(self, video_chunk):
-        '''Builds a packet's payload with a video chunk.'''
+        '''Builds a list of packets with video chunks, each packet with a size that fits the system's limit, accounting for IP and UDP headers.'''
         packed_chunks = []
+        max_packet_size = 65507  # Máximo tamaño de paquete UDP teniendo en cuenta las cabeceras IP y UDP
         chunk_size = args.video_chunk_size
         height, width, _ = video_chunk.shape
         num_chunks = (height * width * 3) // chunk_size
+        remainder = (height * width * 3) % chunk_size
+        if remainder > 0:
+            num_chunks += 1
         for i in range(num_chunks):
             start = i * chunk_size
-            end = min((i + 1) * chunk_size, height * width * 3)  # Ensure end doesn't exceed array size
+            end = min((i + 1) * chunk_size, height * width * 3)  # Asegurarse de que el final no exceda el tamaño del array
             packed_chunks.append(video_chunk[start:end].tobytes())
+
+        # Ajustar el tamaño de los paquetes si superan el límite real
+        for i in range(len(packed_chunks)):
+            if len(packed_chunks[i]) > max_packet_size:
+                packed_chunks[i] = packed_chunks[i][:max_packet_size]
         return packed_chunks
 
     def unpack_audio(self, packed_chunk):
@@ -93,7 +102,7 @@ class Minimal:
 
     def unpack_video(self, packed_chunk):
         '''Unpack a video packed_chunk.'''
-        return np.frombuffer(packed_chunk, np.uint8).reshape((-1, args.video_width, 3))
+        return np.frombuffer(packed_chunk, np.uint8)
 
     def send_audio(self, packed_chunk):
         '''Sends an UDP packet with audio payload.'''
@@ -126,14 +135,14 @@ class Minimal:
         a chunk, and plays the chunk.
         '''
         video_capture = cv2.VideoCapture(0)
-        ret, video_frame = video_capture.read()  # Lee un fotograma del objeto VideoCapture
+        ret, video_frame = video_capture.read()  
 
-        if ret:  # Verifica si la lectura fue exitosa
+        if ret:  
             video_frame = cv2.resize(video_frame, (args.video_width, args.video_height))
             video_frame = cv2.cvtColor(video_frame, cv2.COLOR_BGR2RGB)
             video_chunk = np.asarray(video_frame)
         else:
-            video_chunk = np.zeros((args.video_height, args.video_width, 3), dtype=np.uint8)  # Si la lectura falla, crea un marco de ceros
+            video_chunk = np.zeros((args.video_height, args.video_width, 3), dtype=np.uint8)  
 
         audio_packed = self.pack_audio(ADC)
         video_chunks = self.pack_video(video_chunk)
@@ -143,15 +152,23 @@ class Minimal:
         
         try:
             audio_packed = self.receive_audio()
-            video_packed = self.receive_video()
             audio_chunk = self.unpack_audio(audio_packed)
-            video_chunk = self.unpack_video(video_packed)
+
+            # Ajustar el tamaño del chunk de audio si es necesario
+            expected_audio_chunk_size = args.frames_per_chunk * self.NUMBER_OF_CHANNELS
+            if len(audio_chunk) != expected_audio_chunk_size:
+                logging.warning(f"Received audio chunk size ({len(audio_chunk)}) does not match expected size ({expected_audio_chunk_size}). Adjusting...")
+                audio_chunk = audio_chunk[:expected_audio_chunk_size]
         except (socket.timeout, BlockingIOError):
             audio_chunk = self.zero_chunk
-            video_chunk = np.zeros((args.frames_per_chunk, args.video_width, 3), dtype=np.uint8)  # Fix for video_chunk size
             logging.debug("playing zero chunk")
         
+        # Redimensionar el chunk de audio para que coincida con el tamaño esperado
+        audio_chunk = audio_chunk.reshape((args.frames_per_chunk, self.NUMBER_OF_CHANNELS))
+
+        # Asignar el chunk de audio a DAC
         DAC[:] = audio_chunk
+        
         if __debug__:
             print(next(spinner), end='\b', flush=True)
 
@@ -185,14 +202,21 @@ class Minimal:
         
         try:
             audio_packed = self.receive_audio()
-            video_packed = self.receive_video()
             audio_chunk = self.unpack_audio(audio_packed)
-            video_chunk = self.unpack_video(video_packed)
+
+            # Ajustar el tamaño del chunk de audio si es necesario
+            expected_audio_chunk_size = args.frames_per_chunk * self.NUMBER_OF_CHANNELS
+            if len(audio_chunk) != expected_audio_chunk_size:
+                logging.warning(f"Received audio chunk size ({len(audio_chunk)}) does not match expected size ({expected_audio_chunk_size}). Adjusting...")
+                audio_chunk = audio_chunk[:expected_audio_chunk_size]
         except (socket.timeout, BlockingIOError):
             audio_chunk = self.zero_chunk
-            video_chunk = np.zeros((args.frames_per_chunk, args.video_width, 3), dtype=np.uint8)  # Fix for video_chunk size
             logging.debug("playing zero chunk")
         
+        # Redimensionar el chunk de audio para que coincida con el tamaño esperado
+        audio_chunk = audio_chunk.reshape((args.frames_per_chunk, self.NUMBER_OF_CHANNELS))
+
+        # Asignar el chunk de audio a DAC
         DAC[:] = audio_chunk
         if __debug__:
             print(next(spinner), end='\b', flush=True)
