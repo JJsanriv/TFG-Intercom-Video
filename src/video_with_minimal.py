@@ -71,6 +71,17 @@ class Minimal:
             self._handler = self._record_IO_and_play
             self.stream = self.mic_stream
 
+        self.cap = cv2.VideoCapture(self.find_camera_index())
+
+    def find_camera_index(self):
+        '''Find the index of the first available camera'''
+        for i in range(10):  # Check up to 10 cameras
+            cap = cv2.VideoCapture(i)
+            if cap.isOpened():
+                cap.release()
+                return i
+        return 0  # Default to 0 if no camera found
+
     def pack_audio(self, audio_chunk):
         '''Builds a packet's payload with an audio chunk.'''
         return audio_chunk.tobytes()
@@ -134,15 +145,14 @@ class Minimal:
         chunk, sends the packet, receives a packet, unpacks it to get
         a chunk, and plays the chunk.
         '''
-        video_capture = cv2.VideoCapture(0)
-        ret, video_frame = video_capture.read()  
+        ret, video_frame = self.cap.read()  # Read a frame from the camera
 
-        if ret:  
+        if ret:  # Check if the reading was successful
             video_frame = cv2.resize(video_frame, (args.video_width, args.video_height))
             video_frame = cv2.cvtColor(video_frame, cv2.COLOR_BGR2RGB)
             video_chunk = np.asarray(video_frame)
         else:
-            video_chunk = np.zeros((args.video_height, args.video_width, 3), dtype=np.uint8)  
+            video_chunk = np.zeros((args.video_height, args.video_width, 3), dtype=np.uint8)  # If reading fails, create a zero frame
 
         audio_packed = self.pack_audio(ADC)
         video_chunks = self.pack_video(video_chunk)
@@ -154,72 +164,25 @@ class Minimal:
             audio_packed = self.receive_audio()
             audio_chunk = self.unpack_audio(audio_packed)
 
-            # Ajustar el tamaño del chunk de audio si es necesario
+            # Adjust audio chunk size if necessary
             expected_audio_chunk_size = args.frames_per_chunk * self.NUMBER_OF_CHANNELS
             if len(audio_chunk) != expected_audio_chunk_size:
                 logging.warning(f"Received audio chunk size ({len(audio_chunk)}) does not match expected size ({expected_audio_chunk_size}). Adjusting...")
-                audio_chunk = audio_chunk[:expected_audio_chunk_size]
+                # Adjust the size of audio_chunk
+                audio_chunk = np.resize(audio_chunk, expected_audio_chunk_size)
         except (socket.timeout, BlockingIOError):
             audio_chunk = self.zero_chunk
             logging.debug("playing zero chunk")
         
-        # Redimensionar el chunk de audio para que coincida con el tamaño esperado
-        audio_chunk = audio_chunk.reshape((args.frames_per_chunk, self.NUMBER_OF_CHANNELS))
-
-        # Asignar el chunk de audio a DAC
-        DAC[:] = audio_chunk
+        # Reshape audio_chunk to match the shape of DAC
+        audio_chunk = np.reshape(audio_chunk, (args.frames_per_chunk, self.NUMBER_OF_CHANNELS))
         
-        if __debug__:
-            print(next(spinner), end='\b', flush=True)
-
-    def read_chunk_from_file(self):
-        chunk = self.wavfile.buffer_read(args.frames_per_chunk, dtype='int16')
-        if len(chunk) < args.frames_per_chunk * 4:
-            logging.warning("Input exhausted! :-/")
-            pid = os.getpid()
-            os.kill(pid, signal.SIGINT)
-            return self.zero_chunk
-        chunk = np.frombuffer(chunk, dtype=np.int16)
-        chunk = np.reshape(chunk, (args.frames_per_chunk, self.NUMBER_OF_CHANNELS))
-        return chunk
-            
-    def _read_IO_and_play(self, DAC, frames, time, status):
-        '''Similar to _record_IO_and_play, but the recorded chunk is
-        obtained from the mic (instead of being provided by the
-        interruption handler).
-        '''
-        if __debug__:
-            ADC = self.read_chunk_from_file()
-            audio_packed = self.pack_audio(ADC)
-            video_packed = self.pack_video(np.zeros((args.video_height, args.video_width, 3), dtype=np.uint8))
-            self.send_audio(audio_packed)
-            self.send_video(video_packed)
-        else:
-            audio_packed = self.pack_audio(DAC)
-            video_packed = self.pack_video(np.zeros((args.video_height, args.video_width, 3), dtype=np.uint8))
-            self.send_audio(audio_packed)
-            self.send_video(video_packed)
-        
-        try:
-            audio_packed = self.receive_audio()
-            audio_chunk = self.unpack_audio(audio_packed)
-
-            # Ajustar el tamaño del chunk de audio si es necesario
-            expected_audio_chunk_size = args.frames_per_chunk * self.NUMBER_OF_CHANNELS
-            if len(audio_chunk) != expected_audio_chunk_size:
-                logging.warning(f"Received audio chunk size ({len(audio_chunk)}) does not match expected size ({expected_audio_chunk_size}). Adjusting...")
-                audio_chunk = audio_chunk[:expected_audio_chunk_size]
-        except (socket.timeout, BlockingIOError):
-            audio_chunk = self.zero_chunk
-            logging.debug("playing zero chunk")
-        
-        # Redimensionar el chunk de audio para que coincida con el tamaño esperado
-        audio_chunk = audio_chunk.reshape((args.frames_per_chunk, self.NUMBER_OF_CHANNELS))
-
-        # Asignar el chunk de audio a DAC
+        # Assign audio_chunk to DAC
         DAC[:] = audio_chunk
         if __debug__:
             print(next(spinner), end='\b', flush=True)
+
+
 
     def mic_stream(self):
         '''Generates an output stream from the audio card.'''
@@ -228,8 +191,7 @@ class Minimal:
             while True:
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
-                time.sleep(0.1)  # Añadir un pequeño retraso para reducir el uso de la CPU
-
+                time.sleep(0.1)  # Add a small delay to reduce CPU usage
 
     def file_stream(self):
         '''Generates an output stream from a file.'''
@@ -238,7 +200,7 @@ class Minimal:
             while True:
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
-                time.sleep(0.1)  # Añadir un pequeño retraso para reducir el uso de la CPU
+                time.sleep(0.1)  # Add a small delay to reduce CPU usage
 
     def run(self):
         '''Starts sending the playing chunks.'''
