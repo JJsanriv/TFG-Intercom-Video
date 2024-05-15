@@ -8,7 +8,9 @@ import psutil
 import logging
 import soundfile as sf
 import cv2
-import threading  # Importa la librería threading para manejar hilos
+import threading
+import sys
+from pathlib import Path
 
 FORMAT = "(%(levelname)s) %(module)s: %(message)s"
 logging.basicConfig(format=FORMAT, level=logging.INFO)
@@ -62,6 +64,10 @@ class Minimal:
         logging.info(f"chunk_time = {self.chunk_time} seconds")
         self.zero_chunk = self.generate_zero_chunk()
 
+        self.video_thread = threading.Thread(target=self.record_video)
+        self.video_thread.daemon = True  # Esto permite que el hilo se detenga automáticamente cuando el programa principal termine
+        self.video_thread.start()
+
         if args.filename:
             logging.info(f"Using \"{args.filename}\" as input")
             self.wavfile = sf.SoundFile(args.filename, 'r')
@@ -70,17 +76,6 @@ class Minimal:
         else:
             self._handler = self._record_IO_and_play
             self.stream = self.mic_stream
-
-        self.cap = cv2.VideoCapture(self.find_camera_index())
-
-    def find_camera_index(self):
-        '''Find the index of the first available camera'''
-        for i in range(10):  # Check up to 10 cameras
-            cap = cv2.VideoCapture(i)
-            if cap.isOpened():
-                cap.release()
-                return i
-        return 0  # Default to 0 if no camera found
 
     def pack_audio(self, audio_chunk):
         '''Builds a packet's payload with an audio chunk.'''
@@ -145,47 +140,39 @@ class Minimal:
         chunk, sends the packet, receives a packet, unpacks it to get
         a chunk, and plays the chunk.
         '''
-        ret, video_frame = self.cap.read()  # Read a frame from the camera
-
-        if ret:  # Check if the reading was successful
-            video_frame = cv2.resize(video_frame, (args.video_width, args.video_height))
-            video_frame = cv2.cvtColor(video_frame, cv2.COLOR_BGR2RGB)
-            video_chunk = np.asarray(video_frame)
+        if __debug__:
+            data = ADC.copy()
+            packed_chunk = self.pack_audio(data)
         else:
-            video_chunk = np.zeros((args.video_height, args.video_width, 3), dtype=np.uint8)  # If reading fails, create a zero frame
-
-        audio_packed = self.pack_audio(ADC)
-        video_chunks = self.pack_video(video_chunk)
-        for chunk in video_chunks:
-            self.send_audio(audio_packed)
-            self.send_video([chunk])
-        
+            packed_chunk = self.pack_audio(ADC)
+        self.send_audio(packed_chunk)
         try:
-            audio_packed = self.receive_audio()
-            audio_chunk = self.unpack_audio(audio_packed)
-
-            # Adjust audio chunk size if necessary
-            expected_audio_chunk_size = args.frames_per_chunk * self.NUMBER_OF_CHANNELS
-            if len(audio_chunk) != expected_audio_chunk_size:
-                logging.warning(f"Received audio chunk size ({len(audio_chunk)}) does not match expected size ({expected_audio_chunk_size}). Adjusting...")
-                # Adjust the size of audio_chunk
-                audio_chunk = np.resize(audio_chunk, expected_audio_chunk_size)
+            packed_chunk = self.receive_audio()
+            chunk = self.unpack_audio(packed_chunk)
         except (socket.timeout, BlockingIOError):
-            audio_chunk = self.zero_chunk
+            #chunk = np.zeros((args.frames_per_chunk, self.NUMBER_OF_CHANNELS), self.SAMPLE_TYPE)
+            chunk = self.zero_chunk
             logging.debug("playing zero chunk")
         
-        # Reshape audio_chunk to match the shape of DAC
-        audio_chunk = np.reshape(audio_chunk, (args.frames_per_chunk, self.NUMBER_OF_CHANNELS))
-        
-        # Assign audio_chunk to DAC
-        DAC[:] = audio_chunk
+        chunk = chunk.reshape((int(len(chunk) / 2), 2))
+        DAC[:] = chunk
         if __debug__:
+            #if not np.array_equal(ADC, DAC):
+            #    print("ADC[0] =", ADC[0], "DAC[0] =", DAC[0])
             print(next(spinner), end='\b', flush=True)
 
-    def capture_video(self):
-        '''Function to continuously capture video frames.'''
+    def record_video(self):
+        
+        cap = cv2.VideoCapture(0)  # Open the default camera
+
+        # Check if camera opened successfully
+        if not cap.isOpened():
+            print("Could not open video device!!")
+            sys.exit(1)
+
         while True:
             ret, video_frame = self.cap.read()  # Read a frame from the camera
+
             if ret:  # Check if the reading was successful
                 video_frame = cv2.resize(video_frame, (args.video_width, args.video_height))
                 video_frame = cv2.cvtColor(video_frame, cv2.COLOR_BGR2RGB)
@@ -193,9 +180,13 @@ class Minimal:
             else:
                 video_chunk = np.zeros((args.video_height, args.video_width, 3), dtype=np.uint8)  # If reading fails, create a zero frame
 
-            video_packed = self.pack_video(video_chunk)
-            self.send_video(video_packed)
-            time.sleep(1 / args.video_fps)  # Adjust for desired FPS
+            video_chunks = self.pack_video(video_chunk)
+            for chunk in video_chunks:
+                self.send_video([chunk])
+
+            time.sleep(1 / args.video_fps)  # Esperar un tiempo para sincronizar la grabación con el framerate del vídeo
+
+
 
     def mic_stream(self):
         '''Generates an output stream from the audio card.'''
@@ -219,10 +210,6 @@ class Minimal:
         '''Starts sending the playing chunks.'''
         if not args.filename:
             self.cap = cv2.VideoCapture(0)
-            # Create a separate thread to continuously capture video frames
-            video_thread = threading.Thread(target=self.capture_video)
-            video_thread.daemon = True  # Set the thread as daemon so it automatically stops when the main program exits
-            video_thread.start()
         self.stream()
         if not args.filename:
             self.cap.release()
