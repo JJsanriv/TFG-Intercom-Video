@@ -1,4 +1,3 @@
-import os
 import signal
 import argparse
 import sounddevice as sd
@@ -9,6 +8,7 @@ import psutil
 import logging
 import soundfile as sf
 import cv2
+import threading  # Importa la librería threading para manejar hilos
 
 FORMAT = "(%(levelname)s) %(module)s: %(message)s"
 logging.basicConfig(format=FORMAT, level=logging.INFO)
@@ -182,7 +182,20 @@ class Minimal:
         if __debug__:
             print(next(spinner), end='\b', flush=True)
 
+    def capture_video(self):
+        '''Function to continuously capture video frames.'''
+        while True:
+            ret, video_frame = self.cap.read()  # Read a frame from the camera
+            if ret:  # Check if the reading was successful
+                video_frame = cv2.resize(video_frame, (args.video_width, args.video_height))
+                video_frame = cv2.cvtColor(video_frame, cv2.COLOR_BGR2RGB)
+                video_chunk = np.asarray(video_frame)
+            else:
+                video_chunk = np.zeros((args.video_height, args.video_width, 3), dtype=np.uint8)  # If reading fails, create a zero frame
 
+            video_packed = self.pack_video(video_chunk)
+            self.send_video(video_packed)
+            time.sleep(1 / args.video_fps)  # Adjust for desired FPS
 
     def mic_stream(self):
         '''Generates an output stream from the audio card.'''
@@ -206,6 +219,10 @@ class Minimal:
         '''Starts sending the playing chunks.'''
         if not args.filename:
             self.cap = cv2.VideoCapture(0)
+            # Create a separate thread to continuously capture video frames
+            video_thread = threading.Thread(target=self.capture_video)
+            video_thread.daemon = True  # Set the thread as daemon so it automatically stops when the main program exits
+            video_thread.start()
         self.stream()
         if not args.filename:
             self.cap.release()
