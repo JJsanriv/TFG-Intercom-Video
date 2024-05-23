@@ -1,5 +1,6 @@
 import signal
 import argparse
+import struct
 import sounddevice as sd
 import numpy as np
 import socket
@@ -55,56 +56,123 @@ import threading
 
 class VideoStream:
     def __init__(self, capture_device, server_socket):
-        # Inicializar la captura de video y el socket del servidor
+        # Initialize video capture and server socket
         self.capture = cv2.VideoCapture(capture_device)
         self.server_socket = server_socket
 
     def pack_video(self, frame):
-        # Codificar el frame en formato JPEG y convertirlo a bytes
-        encimg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 90])[1]
-        return encimg.tobytes()
+        # Convert the frame to bytes
+        return frame.tobytes()
 
-    def unpack_video(self, packed_frame):
-        # Decodificar los bytes del frame a una imagen
-        data = np.frombuffer(packed_frame, dtype=np.uint8)
-        decimg = cv2.imdecode(data, 1)
-        return decimg
+    def unpack_video(self, packed_frame, frame_shape):
+        # Convert the bytes back to a frame
+        return np.frombuffer(packed_frame, dtype=np.uint8).reshape(frame_shape)
 
     def send_video(self, send_address):
-        # Enviar el video en trozos para evitar el error "Message too long"
+        # Send the video in chunks to avoid "Message too long" error
+        chunk_size = 508 - struct.calcsize('!I')  # Subtract the size of the sequence number
         while True:
             ret, frame = self.capture.read()
             packed_frame = self.pack_video(frame)
-            chunks = [packed_frame[i:i+65507] for i in range(0, len(packed_frame), 65507)]
-            for chunk in chunks:
+            chunks = [packed_frame[i:i+chunk_size] for i in range(0, len(packed_frame), chunk_size)]
+            for i, chunk in enumerate(chunks):
                 try:
-                    self.server_socket.sendto(chunk, send_address)
+                    # Pack the sequence number and the chunk into a single bytes-like object
+                    message = struct.pack('!I', i) + chunk
+                    self.server_socket.sendto(message, send_address)
                 except Exception as e:
                     print(f"Error sending video frame: {e}")
                     break
 
     def receive_video(self, receive_address):
-        # Recibir y mostrar el video
+        # Receive and display the video
+        frame_shape = (480, 640, 3)  # Define the frame shape
+        frame_size = np.prod(frame_shape)  # Calculate the size of a frame
+        chunks = []
+        total_size = 0  # Keep track of the total size of the chunks
         while True:
             try:
-                packed_frame, addr = self.server_socket.recvfrom(65507)
-                frame = self.unpack_video(packed_frame)
-                if frame is not None:
-                    cv2.imshow('Video connected!', frame)
-                    cv2.waitKey(1)
-                else:
-                    print("Error decoding video frame")
-                    break
+                data, addr = self.server_socket.recvfrom(65507)
+                # Unpack the sequence number and the chunk from the received data
+                seq_num = struct.unpack('!I', data[:4])[0]
+                chunk = data[4:]
+                if total_size + len(chunk) <= frame_size:
+                    chunks.append(chunk)
+                    total_size += len(chunk)  # Update the total size
+                # If we have received all the data for a frame
+                if total_size == frame_size:
+                    # Concatenate the chunks together and reshape the result into a frame
+                    frame_data = b''.join(chunks)
+                    frame = np.frombuffer(frame_data, dtype=np.uint8).reshape(frame_shape)
+                    cv2.imshow('Video', frame)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+                    chunks = []  # Start collecting chunks for the next frame
+                    total_size = 0  # Reset the total size
             except Exception as e:
                 print(f"Error receiving video frame: {e}")
-                break
 
     def send_and_receive_video(self, send_address, receive_address):
-        # Hilos para enviar y recibir video simultáneamente
-        send_thread = threading.Thread(target=self.send_video, args=(send_address,))
-        receive_thread = threading.Thread(target=self.receive_video, args=(receive_address,))
-        send_thread.start()
-        receive_thread.start()
+        # Thread to send and receive video simultaneously
+        thread = threading.Thread(target=self.send_and_receive_video_single_thread, args=(send_address, receive_address,))
+        thread.daemon = True  # Set the thread as a daemon
+        thread.start()
+
+    def send_and_receive_video_single_thread(self, send_address, receive_address):
+        # Send and receive video in a single thread
+        while True:
+            # Send video
+            ret, frame = self.capture.read()
+            packed_frame = self.pack_video(frame)
+            
+            # Show the video
+            cv2.imshow('Video', frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+            # Define the maximum chunk size
+            max_chunk_size = 65507 - 4  # Subtract the size of the sequence number
+            # Split the frame into chunks
+            chunks = [packed_frame[i:i+max_chunk_size] for i in range(0, len(packed_frame), max_chunk_size)]
+            
+            for i, chunk in enumerate(chunks):
+                try:
+                    # Pack the sequence number into a 4-byte integer
+                    seq_num = struct.pack('!I', i)
+                    # Concatenate the sequence number and the chunk
+                    data = seq_num + chunk
+                    # Send the data
+                    self.server_socket.sendto(data, send_address)
+                except Exception as e:
+                    print(f"Error sending video frame: {e}")
+                    return
+
+            # Receive video
+            frame_shape = (480, 640, 3)  # Define the frame shape
+            frame_size = np.prod(frame_shape)  # Calculate the size of a frame
+            chunks = []
+            total_size = 0  # Keep track of the total size of the chunks
+            try:
+                data, addr = self.server_socket.recvfrom(65507)
+                # Unpack the sequence number and the chunk from the received data
+                seq_num = struct.unpack('!I', data[:4])[0]
+                chunk = data[4:]
+                if total_size + len(chunk) <= frame_size:
+                    chunks.append(chunk)
+                    total_size += len(chunk)  # Update the total size
+                # If we have received all the data for a frame
+                if total_size == frame_size:
+                    # Concatenate the chunks together and reshape the result into a frame
+                    frame_data = b''.join(chunks)
+                    frame = np.frombuffer(frame_data, dtype=np.uint8).reshape(frame_shape)
+                    cv2.imshow('Video', frame)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        return
+                    chunks = []  # Start collecting chunks for the next frame
+                    total_size = 0  # Reset the total size
+            except Exception as e:
+                print(f"Error receiving video frame: {e}")
+                return
 
     def close(self):
         # Cerrar el socket del servidor
