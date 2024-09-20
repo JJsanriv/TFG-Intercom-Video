@@ -46,7 +46,7 @@ args = parser.parse_args()
 
 MAX_PAYLOAD_BYTES = 1400
 VIDEO_PORT = 4445
-VIDEO_FPS = 20
+VIDEO_FPS = 10
 NUMBER_OF_CHANNELS = 2
 
 class VideoAudioIntercom:
@@ -124,14 +124,16 @@ class VideoAudioIntercom:
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
         self.cap.set(cv2.CAP_PROP_FPS, VIDEO_FPS)
-        
+
         try:
             while not self.shutdown_flag:
                 # Captura un frame de la cámara
                 ret, frame = self.cap.read()
                 if not ret:
                     break
-                # Envía los datos del frame sin redimensionar ni codificar
+                # Redimensiona el frame a 640x480
+                frame = cv2.resize(frame, (640, 480))
+                # Empaqueta el frame crudo
                 data = frame.tobytes()
                 try:
                     # Envía el tamaño del frame y los datos del frame al cliente
@@ -151,8 +153,8 @@ class VideoAudioIntercom:
                         to_read = length - len(data)
                         # Recibe los datos del frame del cliente
                         data += client_socket.recv(4096 if to_read > 4096 else to_read)
-                    # Convierte el frame de vuelta a un array de NumPy y muestra el frame recibido
-                    img = np.frombuffer(data, dtype=np.uint8).reshape(240, 320, 3)  # Ajusta el tamaño de la imagen según la configuración de la cámara
+                    # Decodifica los datos del frame crudo y los convierte de nuevo a imagen
+                    img = np.frombuffer(data, dtype=np.uint8).reshape(480, 640, 3)
                     cv2.imshow('Server', img)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
@@ -192,7 +194,9 @@ class VideoAudioIntercom:
                 ret, frame = cap.read()
                 if not ret:
                     break
-                # Envía los datos del frame sin redimensionar ni codificar
+                # Redimensiona el frame a 640x480
+                frame = cv2.resize(frame, (640, 480))
+                # Empaqueta el frame crudo
                 data = frame.tobytes()
                 try:
                     # Envía el tamaño del frame y los datos del frame al servidor
@@ -212,8 +216,8 @@ class VideoAudioIntercom:
                         to_read = length - len(data)
                         # Recibe los datos del frame del servidor
                         data += client_socket.recv(4096 if to_read > 4096 else to_read)
-                    # Convierte el frame de vuelta a un array de NumPy y muestra el frame recibido
-                    img = np.frombuffer(data, dtype=np.uint8).reshape(240, 320, 3)  # Ajusta el tamaño de la imagen según la configuración de la cámara
+                    # Decodifica los datos del frame crudo y los convierte de nuevo a imagen
+                    img = np.frombuffer(data, dtype=np.uint8).reshape(480, 640, 3)
                     cv2.imshow('Client', img)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
@@ -225,6 +229,27 @@ class VideoAudioIntercom:
             client_socket.close()
             cv2.destroyAllWindows()
 
+
+        def local_video(self):
+            # Configura la captura de video desde la cámara y muestra el video localmente
+            self.cap = cv2.VideoCapture(0)
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+            self.cap.set(cv2.CAP_PROP_FPS, VIDEO_FPS)
+
+            try:
+                while not self.shutdown_flag:
+                    # Captura un frame de la cámara
+                    ret, frame = self.cap.read()
+                    if not ret:
+                        break
+                    # Muestra el frame capturado localmente
+                    cv2.imshow('Local Video', frame)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+            finally:
+                self.cap.release()
+                cv2.destroyAllWindows()
 
     def run_video(self):
         # Ejecuta el modo de video dependiendo de si es servidor, cliente o local
