@@ -44,12 +44,14 @@ parser.add_argument("--client", action='store_true', help="Set the device as cli
 parser.add_argument("--server", action='store_true', help="Set the device as server")
 args = parser.parse_args()
 
-MAX_PAYLOAD_BYTES = 1400
+MAX_PAYLOAD_BYTES = 2800
 VIDEO_PORT = 4445
 VIDEO_FPS = 10
 NUMBER_OF_CHANNELS = 2
 
 class VideoAudioIntercom:
+
+    # Inicializa los sockets, variables de configuración y prepara las fuentes de audio y video
     def __init__(self, args):
         self.args = args
         self.sock_audio = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -75,12 +77,15 @@ class VideoAudioIntercom:
         else:
             self.audio_stream = self.mic_stream
 
+    # Empaqueta el chunk de audio en formato de bytes
     def pack_audio(self, audio_chunk):
         return audio_chunk.tobytes()
 
+    # Desempaqueta los bytes del chunk de audio en un array numpy
     def unpack_audio(self, packed_chunk):
         return np.frombuffer(packed_chunk, np.int16).reshape(-1, NUMBER_OF_CHANNELS)
 
+    # Envía el chunk de audio empaquetado al destino
     def send_audio(self, packed_chunk):
         if packed_chunk is not None:
             try:
@@ -88,6 +93,7 @@ class VideoAudioIntercom:
             except Exception as e:
                 logging.error(f"Failed to send audio: {e}")
 
+    # Recibe un chunk de audio del destino y lo devuelve empaquetado
     def receive_audio(self):
         try:
             audio_chunk_size = self.args.frames_per_chunk * NUMBER_OF_CHANNELS * np.dtype(np.int16).itemsize
@@ -97,6 +103,7 @@ class VideoAudioIntercom:
             logging.error(f"Failed to receive audio: {e}")
             return None
 
+    # Callback para grabar audio, enviarlo al destino, recibir audio del destino y reproducirlo
     def _record_IO_and_play(self, ADC, DAC, frames, time, status):
         if self.shutdown_flag:
             raise sd.CallbackAbort
@@ -118,6 +125,7 @@ class VideoAudioIntercom:
         if __debug__:
             print(next(spinner), end='\b', flush=True)
 
+    # Callback para grabar audio y enviarlo al destino siendo el dispositivo servidor
     def server_video(self, client_socket):
         # Configura la captura de video desde la cámara y el envío de frames al cliente
         self.cap = cv2.VideoCapture(0)
@@ -166,7 +174,7 @@ class VideoAudioIntercom:
             client_socket.close()
             cv2.destroyAllWindows()
 
-
+    # Callback para grabar audio y enviarlo al destino siendo el dispositivo cliente
     def client_video(self):
         # Intenta conectar al servidor de video
         retry_count = 0
@@ -230,6 +238,7 @@ class VideoAudioIntercom:
             cv2.destroyAllWindows()
 
 
+        # Funcion para ejecutar video en modo exclusivamente local (sin flags de servidor o cliente)
         def local_video(self):
             # Configura la captura de video desde la cámara y muestra el video localmente
             self.cap = cv2.VideoCapture(0)
@@ -251,6 +260,7 @@ class VideoAudioIntercom:
                 self.cap.release()
                 cv2.destroyAllWindows()
 
+    # Función para ejecutar el modo de video dependiendo de si es servidor, cliente o local
     def run_video(self):
         # Ejecuta el modo de video dependiendo de si es servidor, cliente o local
         if self.args.server:
@@ -262,25 +272,7 @@ class VideoAudioIntercom:
         else:
             self.local_video()
 
-
-    def local_video(self):
-        self.cap = cv2.VideoCapture(0)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
-        self.cap.set(cv2.CAP_PROP_FPS, VIDEO_FPS)
-
-        try:
-            while not self.shutdown_flag:
-                ret, frame = self.cap.read()
-                if not ret:
-                    break
-                cv2.imshow('Local Video', frame)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
-        finally:
-            self.cap.release()
-            cv2.destroyAllWindows()
-
+    # Función para ejecutar el stream de audio
     def mic_stream(self, callback_function):
         try:
             with sd.Stream(device=(self.args.input_device, self.args.output_device),
@@ -293,12 +285,14 @@ class VideoAudioIntercom:
         except Exception as e:
             logging.error(f"Error in mic_stream: {e}")
 
+    # Función para ejecutar el stream de audio desde un archivo
     def file_stream(self):
         try:
             self.run_video()
         except Exception as e:
             logging.error(f"Error in file_stream: {e}")
 
+    # Función para ejecutar el programa
     def run(self):
         try:
             if self.args.filename:
@@ -308,6 +302,7 @@ class VideoAudioIntercom:
         except Exception as e:
             logging.error(f"Error in run: {e}")
 
+    # Función para cerrar los sockets y liberar recursos
     def shutdown(self):
         self.shutdown_flag = True
         self.sock_audio.close()
@@ -316,11 +311,13 @@ class VideoAudioIntercom:
             self.cap.release()
         cv2.destroyAllWindows()
 
+# Función para manejar la señal de interrupción (Ctrl+C)
 def shutdown_handler(signum, frame):
     global intercom
     logging.info("Shutting down...")
     intercom.shutdown()
     sys.exit(0)
+
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, shutdown_handler)
@@ -339,4 +336,5 @@ if __name__ == "__main__":
     
     intercom.run()
 
+    
     
