@@ -44,10 +44,10 @@ parser.add_argument("--client", action='store_true', help="Set the device as cli
 parser.add_argument("--server", action='store_true', help="Set the device as server")
 args = parser.parse_args()
 
-MAX_PAYLOAD_BYTES = 2800
 VIDEO_PORT = 4445
 VIDEO_FPS = 10
 NUMBER_OF_CHANNELS = 2
+MAX_PAYLOAD_BYTES = args.frames_per_chunk * NUMBER_OF_CHANNELS * np.dtype(np.int16).itemsize
 
 class VideoAudioIntercom:
 
@@ -89,41 +89,65 @@ class VideoAudioIntercom:
     def send_audio(self, packed_chunk):
         if packed_chunk is not None:
             try:
-                self.sock_audio.sendto(packed_chunk, (self.destination_address, self.destination_port_audio))
+                # Enviar el audio en fragmentos si es más grande que MAX_PAYLOAD_BYTES
+                for i in range(0, len(packed_chunk), MAX_PAYLOAD_BYTES):
+                    self.sock_audio.sendto(packed_chunk[i:i + MAX_PAYLOAD_BYTES],
+                                        (self.destination_address, self.destination_port_audio))
             except Exception as e:
                 logging.error(f"Failed to send audio: {e}")
 
-    # Recibe un chunk de audio del destino y lo devuelve empaquetado
+
+     # Recibe un chunk de audio del destino y lo devuelve empaquetado
     def receive_audio(self):
         try:
+            # Calcula el tamaño del chunk de audio en bytes
             audio_chunk_size = self.args.frames_per_chunk * NUMBER_OF_CHANNELS * np.dtype(np.int16).itemsize
-            audio_packed, _ = self.sock_audio.recvfrom(audio_chunk_size)
-            return audio_packed
+            data = b''
+
+            # Recibir datos hasta completar el chunk esperado
+            while len(data) < audio_chunk_size:
+                packet, _ = self.sock_audio.recvfrom(MAX_PAYLOAD_BYTES)
+                data += packet
+                if not packet:
+                    break
+
+            if len(data) != audio_chunk_size:
+                logging.warning(f"Received incomplete audio chunk: {len(data)} bytes (expected {audio_chunk_size})")
+                return None
+
+            return data
         except Exception as e:
             logging.error(f"Failed to receive audio: {e}")
             return None
+
 
     # Callback para grabar audio, enviarlo al destino, recibir audio del destino y reproducirlo
     def _record_IO_and_play(self, ADC, DAC, frames, time, status):
         if self.shutdown_flag:
             raise sd.CallbackAbort
+
         try:
+            # Captura el audio del micrófono
             data = ADC.copy()
             packed_chunk = self.pack_audio(data)
+
             if self.destination_address:
+                # Enviar el audio al interlocutor
                 self.send_audio(packed_chunk)
+                # Recibir el audio del interlocutor
                 packed_chunk = self.receive_audio()
+
                 if packed_chunk:
                     chunk = self.unpack_audio(packed_chunk)
                 else:
-                    chunk = self.zero_chunk
+                    chunk = self.zero_chunk  # Relleno en caso de fallo
             else:
-                chunk = data
-            DAC[:] = chunk
+                chunk = data  # Si no hay interlocutor, usa el mismo audio
+
+            DAC[:] = chunk  # Reproducir el audio
+
         except Exception as e:
             logging.error(f"Error in audio processing: {e}")
-        if __debug__:
-            print(next(spinner), end='\b', flush=True)
 
     # Callback para grabar audio y enviarlo al destino siendo el dispositivo servidor
     def server_video(self, client_socket):
@@ -296,7 +320,7 @@ class VideoAudioIntercom:
                            blocksize=self.args.frames_per_chunk,
                            channels=NUMBER_OF_CHANNELS,
                            callback=callback_function):
-                self.run_video()
+                self.run_video()  # Inicia el video al mismo tiempo que el audio
         except Exception as e:
             logging.error(f"Error in mic_stream: {e}")
 
@@ -307,7 +331,7 @@ class VideoAudioIntercom:
         except Exception as e:
             logging.error(f"Error in file_stream: {e}")
 
-    # Función para ejecutar el programa
+    # Función principal de ejecución
     def run(self):
         try:
             if self.args.filename:
