@@ -139,10 +139,11 @@ class VideoAudioIntercom:
                 ret, frame = self.cap.read()
                 if not ret:
                     break
-                # Redimensiona el frame a 640x480
-                frame = cv2.resize(frame, (640, 480))
+                # Redimensiona el frame a 320x240
+                frame = cv2.resize(frame, (320, 240))
                 # Empaqueta el frame crudo
                 data = frame.tobytes()
+
                 try:
                     # Envía el tamaño del frame y los datos del frame al cliente
                     client_socket.sendall(struct.pack('<L', len(data)) + data)
@@ -161,8 +162,14 @@ class VideoAudioIntercom:
                         to_read = length - len(data)
                         # Recibe los datos del frame del cliente
                         data += client_socket.recv(4096 if to_read > 4096 else to_read)
+
+                    # Validar el tamaño del frame antes de continuar
+                    if len(data) != 320 * 240 * 3:
+                        logging.error(f"Received incorrect data size: {len(data)}. Expected: {320 * 240 * 3}")
+                        continue
+
                     # Decodifica los datos del frame crudo y los convierte de nuevo a imagen
-                    img = np.frombuffer(data, dtype=np.uint8).reshape(480, 640, 3)
+                    img = np.frombuffer(data, dtype=np.uint8).reshape(240, 320, 3)
                     cv2.imshow('Server', img)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
@@ -188,24 +195,26 @@ class VideoAudioIntercom:
                 logging.error(f"Connection attempt {retry_count + 1} failed: {e}")
                 retry_count += 1
                 time.sleep(2)
-
-        if retry_count == max_retries:
-            logging.error("Could not connect to the video server.")
+        else:
+            logging.error(f"Failed to connect to video server after {max_retries} attempts")
             return
 
-        logging.info(f"Connected to the video server at {self.destination_address}:{VIDEO_PORT}")
+        self.cap = cv2.VideoCapture(0)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+        self.cap.set(cv2.CAP_PROP_FPS, VIDEO_FPS)
 
-        cap = cv2.VideoCapture(0)
         try:
             while not self.shutdown_flag:
                 # Captura un frame de la cámara
-                ret, frame = cap.read()
+                ret, frame = self.cap.read()
                 if not ret:
                     break
-                # Redimensiona el frame a 640x480
-                frame = cv2.resize(frame, (640, 480))
+                # Redimensiona el frame a 320x240
+                frame = cv2.resize(frame, (320, 240))
                 # Empaqueta el frame crudo
                 data = frame.tobytes()
+
                 try:
                     # Envía el tamaño del frame y los datos del frame al servidor
                     client_socket.sendall(struct.pack('<L', len(data)) + data)
@@ -224,8 +233,14 @@ class VideoAudioIntercom:
                         to_read = length - len(data)
                         # Recibe los datos del frame del servidor
                         data += client_socket.recv(4096 if to_read > 4096 else to_read)
+
+                    # Validar el tamaño del frame antes de continuar
+                    if len(data) != 320 * 240 * 3:
+                        logging.error(f"Received incorrect data size: {len(data)}. Expected: {320 * 240 * 3}")
+                        continue
+
                     # Decodifica los datos del frame crudo y los convierte de nuevo a imagen
-                    img = np.frombuffer(data, dtype=np.uint8).reshape(480, 640, 3)
+                    img = np.frombuffer(data, dtype=np.uint8).reshape(240, 320, 3)
                     cv2.imshow('Client', img)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
@@ -233,7 +248,7 @@ class VideoAudioIntercom:
                     logging.error(f"Error receiving video: {e}")
                     break
         finally:
-            cap.release()
+            self.cap.release()
             client_socket.close()
             cv2.destroyAllWindows()
 
