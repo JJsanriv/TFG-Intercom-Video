@@ -277,27 +277,27 @@ class VideoAudioIntercom:
             cv2.destroyAllWindows()
 
 
-        # Funcion para ejecutar video en modo exclusivamente local (sin flags de servidor o cliente)
-        def local_video(self):
-            # Configura la captura de video desde la cámara y muestra el video localmente
-            self.cap = cv2.VideoCapture(0)
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
-            self.cap.set(cv2.CAP_PROP_FPS, VIDEO_FPS)
+    # Funcion para ejecutar video en modo exclusivamente local (sin flags de servidor o cliente)
+    def local_video(self):
+        # Configura la captura de video desde la cámara y muestra el video localmente
+        self.cap = cv2.VideoCapture(0)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+        self.cap.set(cv2.CAP_PROP_FPS, VIDEO_FPS)
 
-            try:
-                while not self.shutdown_flag:
-                    # Captura un frame de la cámara
-                    ret, frame = self.cap.read()
-                    if not ret:
-                        break
-                    # Muestra el frame capturado localmente
-                    cv2.imshow('Local Video', frame)
-                    if cv2.waitKey(1) & 0xFF == ord('q'):
-                        break
-            finally:
-                self.cap.release()
-                cv2.destroyAllWindows()
+        try:
+            while not self.shutdown_flag:
+                # Captura un frame de la cámara
+                ret, frame = self.cap.read()
+                if not ret:
+                    break
+                # Muestra el frame capturado localmente
+                cv2.imshow('Local Video', frame)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+        finally:
+            self.cap.release()
+            cv2.destroyAllWindows()
 
     # Función para ejecutar el modo de video dependiendo de si es servidor, cliente o local
     def run_video(self):
