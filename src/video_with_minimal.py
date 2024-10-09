@@ -44,7 +44,7 @@ VIDEO_PORT = 4445
 VIDEO_FPS = 10
 NUMBER_OF_CHANNELS = 2
 VIDEO_FRAME_SIZE = 320 * 240 * 3  # Tamaño de un frame de video (en bytes) para 320x240 resolución
-MAX_PAYLOAD_BYTES = 60000 # Tamaño máximo de un paquete UDP
+MAX_PAYLOAD_BYTES = 32768 # Tamaño máximo de un paquete UDP
 
 
 class VideoAudioIntercom:
@@ -102,78 +102,127 @@ class VideoAudioIntercom:
 
    # Recibe un chunk empaquetado del destino
    def receive_audio_video(self):
-       try:
-           fragments = {}
-           expected_fragments = None
-           while True:
-               try:
-                   packed_data, _ = self.sock.recvfrom(MAX_PAYLOAD_BYTES + 4)  # Recibe el fragmento con el encabezado
-               except socket.timeout:
-                   if self.shutdown_flag.is_set():
-                       return None
-                   else:
-                       continue  # Seguir esperando
+    try:
+        fragments = {}
+        expected_fragments = None
+
+        while True:
+            try:
+                # Intenta recibir un fragmento de datos con encabezado
+                packed_data, _ = self.sock.recvfrom(MAX_PAYLOAD_BYTES + 4)
+            except socket.timeout:
+                # Si no llega un paquete y se ha solicitado la finalización, sal de la función
+                if self.shutdown_flag.is_set():
+                    return None
+                else:
+                    continue  # Seguir esperando nuevos fragmentos
+
+            # Procesar el encabezado
+            fragment_index, total_fragments = struct.unpack('<H', packed_data[:2])[0], struct.unpack('<H', packed_data[2:4])[0]
+
+            # Almacenar fragmento en el diccionario
+            fragments[fragment_index] = packed_data[4:]
+
+            # La primera vez, se conoce cuántos fragmentos se esperan
+            if expected_fragments is None:
+                expected_fragments = total_fragments
+
+            # Cuando recibimos todos los fragmentos, podemos salir del bucle
+            if len(fragments) == expected_fragments:
+                break
+
+        # Reconstruir el paquete completo (usando un buffer más eficiente)
+        full_packet = bytearray()  # Preasigna un buffer para los datos completos
+        for i in range(expected_fragments):
+            full_packet.extend(fragments[i])
+
+        return full_packet
+
+    except socket.error as e:
+        logging.error(f"Socket error: {e}")
+        return None
+    except Exception as e:
+        logging.error(f"Failed to receive audio/video: {e}")
+        return None
 
 
-               fragment_index, total_fragments = struct.unpack('<H', packed_data[:2])[0], struct.unpack('<H', packed_data[2:4])[0]
-               fragments[fragment_index] = packed_data[4:]
-               if expected_fragments is None:
-                   expected_fragments = total_fragments
-               if len(fragments) == expected_fragments:
-                   break
-           # Reconstruir el paquete completo
-           full_packet = b''.join(fragments[i] for i in range(expected_fragments))
-           return full_packet
-       except Exception as e:
-           logging.error(f"Failed to receive audio/video: {e}")
-           return None
 
 
    # Callback para grabar audio, video, enviarlos al destino, recibir audio y video del destino y reproducirlos
    def _record_IO_and_play(self, ADC, DAC, frames, time_info, status):
-       if self.shutdown_flag.is_set():
-           raise sd.CallbackAbort
+    if self.shutdown_flag.is_set():
+        raise sd.CallbackAbort
 
-       try:
-           # Captura el audio del micrófono
-           audio_chunk = ADC.copy()
+    try:
+        start_time = time.time()  # Tiempo inicial de la función
 
-           # Captura el video desde la cámara
-           ret, frame = self.cap.read()
-           if not ret:
-               frame = self.zero_chunk_video  # Si falla la captura de video, usa un frame en negro
+        # Captura el audio del micrófono
+        t0 = time.time()
+        audio_chunk = ADC.copy()
+        t1 = time.time()
+        logging.debug(f"Tiempo capturando audio del micrófono: {t1 - t0:.6f} segundos")
 
-           # Empaqueta audio y video juntos
-           packed_chunk = self.pack_audio_video(audio_chunk, frame)
+        # Captura el video desde la cámara
+        t0 = time.time()
+        ret, frame = self.cap.read()
+        if not ret:
+            frame = self.zero_chunk_video  # Si falla la captura de video, usa un frame en negro
+        t1 = time.time()
+        logging.debug(f"Tiempo capturando video desde la cámara: {t1 - t0:.6f} segundos")
 
-           if self.destination_address:
-               # Enviar el paquete audio-video
-               self.send_audio_video(packed_chunk)
+        # Empaqueta audio y video juntos
+        t0 = time.time()
+        packed_chunk = self.pack_audio_video(audio_chunk, frame)
+        t1 = time.time()
+        logging.debug(f"Tiempo empaquetando audio y video: {t1 - t0:.6f} segundos")
 
-               # Recibir el paquete de audio y video del interlocutor
-               packed_chunk = self.receive_audio_video()
+        if self.destination_address:
+            # Enviar el paquete audio-video
+            t0 = time.time()
+            self.send_audio_video(packed_chunk)
+            t1 = time.time()
+            logging.debug(f"Tiempo enviando paquete de audio/video: {t1 - t0:.6f} segundos")
 
-               if packed_chunk:
-                   audio_chunk, video_frame = self.unpack_audio_video(packed_chunk)
-               else:
-                   audio_chunk = self.zero_chunk_audio  # Relleno en caso de fallo
-                   video_frame = self.zero_chunk_video  # Frame negro en caso de fallo
-           else:
-               audio_chunk = ADC  # Si no hay interlocutor, usa el mismo audio
-               video_frame = frame  # Y el mismo video
+            # Recibir el paquete de audio y video del interlocutor
+            t0 = time.time()
+            packed_chunk = self.receive_audio_video()
+            t1 = time.time()
+            logging.debug(f"Tiempo recibiendo paquete de audio/video: {t1 - t0:.6f} segundos")
 
-           # Reproducir el audio recibido
-           DAC[:] = audio_chunk
+            if packed_chunk:
+                t0 = time.time()
+                audio_chunk, video_frame = self.unpack_audio_video(packed_chunk)
+                t1 = time.time()
+                logging.debug(f"Tiempo desempaquetando audio/video: {t1 - t0:.6f} segundos")
+            else:
+                audio_chunk = self.zero_chunk_audio  # Relleno en caso de fallo
+                video_frame = self.zero_chunk_video  # Frame negro en caso de fallo
+        else:
+            audio_chunk = ADC  # Si no hay interlocutor, usa el mismo audio
+            video_frame = frame  # Y el mismo video
 
-           # Mostrar el video recibido
-           cv2.imshow('Video', video_frame)
-           if cv2.waitKey(1) & 0xFF == ord('q'):
-               self.shutdown_flag.set()
+        # Reproducir el audio recibido
+        t0 = time.time()
+        DAC[:] = audio_chunk
+        t1 = time.time()
+        logging.debug(f"Tiempo reproduciendo audio: {t1 - t0:.6f} segundos")
 
-       except sd.CallbackAbort:
-           logging.info("Callback aborted")
-       except Exception as e:
-           logging.error(f"Error in audio/video processing: {e}")
+        # Mostrar el video recibido
+        t0 = time.time()
+        cv2.imshow('Video', video_frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            self.shutdown_flag.set()
+        t1 = time.time()
+        logging.debug(f"Tiempo mostrando video: {t1 - t0:.6f} segundos")
+
+        end_time = time.time()
+        logging.debug(f"Tiempo total en _record_IO_and_play: {end_time - start_time:.6f} segundos")
+
+    except sd.CallbackAbort:
+        logging.info("Callback aborted")
+    except Exception as e:
+        logging.error(f"Error in audio/video processing: {e}")
+
 
 
    # Configura la cámara para el video
@@ -253,4 +302,3 @@ if __name__ == "__main__":
        logging.info("KeyboardInterrupt caught in main")
        intercom.shutdown()
        parser.exit("\nSIGINT received")
-
