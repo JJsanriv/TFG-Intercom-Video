@@ -518,7 +518,7 @@ class VideoAudioIntercom:
         except Exception as e_out:
             logging.error(f"Failed to output silence after error: {e_out}")
 
-  def _video_capture_loop(self):
+  def video_capture_loop(self):
       """
       Hilo dedicado para capturar frames de video continuamente y ponerlos en una cola.
       """
@@ -672,7 +672,7 @@ class VideoAudioIntercom:
               parser.exit(1, "Error: Failed to initialize video capture.")
 
           # 2. Iniciar hilo dedicado a la captura de video
-          self.video_capture_thread = threading.Thread(target=self._video_capture_loop, name="VideoCaptureThread")
+          self.video_capture_thread = threading.Thread(target=self.video_capture_loop, name="VideoCaptureThread")
           self.video_capture_thread.daemon = True
           self.video_capture_thread.start()
 
