@@ -12,18 +12,23 @@ import psutil
 import math
 import struct
 import threading
-import minimal_video  # Ahora se importa minimal_video en lugar de minimal.
+import minimal_video
 import soundfile as sf
 import logging
+import queue
 
-# Agregar el parámetro de buffering al parser del módulo minimal_video.
+# --- Usamos el parser ya definido en minimal_video ---
+if not hasattr(minimal_video, 'parser'):
+    minimal_video.parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+# --- Añadir argumentos específicos para el buffering ---
 minimal_video.parser.add_argument("-b", "--buffering_time", type=int, default=150, help="Miliseconds to buffer")
 
-class Buffering(minimal_video.Minimal_Video):  # Hereda de Minimal_Video en lugar de minimal.Minimal.
-    CHUNK_NUMBERS = 1 << 15  # Enough for most buffering times.
+class Buffering(minimal_video.Minimal_Video):
+    CHUNK_NUMBERS = 1 << 15  # Suficiente para la mayoría de los tiempos de buffering
 
     def __init__(self):
-        '''Initializes the buffer.'''
+        # Llama al constructor de Minimal_Video (que ya habilita video por defecto)
         super().__init__()
         logging.info(__doc__)
         if minimal_video.args.buffering_time <= 0:
@@ -48,36 +53,26 @@ class Buffering(minimal_video.Minimal_Video):  # Hereda de Minimal_Video en luga
             self.stream = self.mic_stream
 
     def pack(self, chunk_number, chunk):
-        '''Concatenates a chunk number to the chunk.'''
+        """Concatenates a chunk number to the chunk."""
         packed_chunk = struct.pack("!H", chunk_number) + chunk.tobytes()
         return packed_chunk
 
     def unpack(self, packed_chunk):
-        '''Splits the packed chunk into a chunk number and a chunk.'''
+        """Splits the packed chunk into a chunk number and a chunk."""
         (chunk_number,) = struct.unpack("!H", packed_chunk[:2])
         chunk = packed_chunk[2:]
-        # Convertir a array de int16.
         chunk = np.frombuffer(chunk, dtype=np.int16)
-<<<<<<< HEAD
-=======
-        #chunk = chunk.reshape(minimal.args.frames_per_chunk, minimal.args.number_of_channels)
->>>>>>> 5b5a48fc50a111921064f015612abe097e776bfa
         return chunk_number, chunk
 
     def buffer_chunk(self, chunk_number, chunk):
         self._buffer[chunk_number % self.cells_in_buffer] = chunk
 
     def unbuffer_next_chunk(self):
-        chunk = self._buffer[self.played_chunk_number % self.cells_in_buffer]
-        return chunk
+        return self._buffer[self.played_chunk_number % self.cells_in_buffer]
 
     def play_chunk(self, DAC, chunk):
         self.played_chunk_number = (self.played_chunk_number + 1) % self.cells_in_buffer
-<<<<<<< HEAD
         chunk = chunk.reshape(minimal_video.args.frames_per_chunk, minimal_video.args.number_of_channels)
-=======
-        chunk = chunk.reshape(minimal.args.frames_per_chunk, minimal.args.number_of_channels)
->>>>>>> 5b5a48fc50a111921064f015612abe097e776bfa
         DAC[:] = chunk
 
     def receive(self):
@@ -85,9 +80,8 @@ class Buffering(minimal_video.Minimal_Video):  # Hereda de Minimal_Video en luga
         return packed_chunk
 
     def receive_and_buffer(self):
-        if __debug__:
-            # Se utiliza el spinner definido originalmente en minimal (accesible vía minimal_video ya que se hereda).
-            print(next(minimal_video.spinner), end='\b', flush=True)
+        # Se muestra el spinner, heredado del módulo minimal_video
+        print(next(minimal_video.spinner), end='\b', flush=True)
         packed_chunk = self.receive()
         chunk_number, chunk = self.unpack(packed_chunk)
         self.buffer_chunk(chunk_number, chunk)
@@ -110,23 +104,34 @@ class Buffering(minimal_video.Minimal_Video):  # Hereda de Minimal_Video en luga
         return read_chunk
 
     def run(self):
-        '''Creates the stream, installs the callback, and waits for an enter-key.'''
         logging.info("Press CTRL+c to quit")
         self.played_chunk_number = 0
+
+        # Inicia el hilo de captura de vídeo (si la captura está habilitada)
+        if self.capture_enabled:
+            t_capture = threading.Thread(target=self.capture_video_loop, daemon=True, name="CaptureThread")
+            t_capture.start()
+
+        # Inicia también el hilo de visualización de vídeo
+        if self.capture_enabled:
+            t_display = threading.Thread(target=self.display_video_loop, daemon=True, name="DisplayThread")
+            t_display.start()
+
+        # Luego, abre el stream de audio/asociado al buffering
         with self.stream(self._handler):
             first_received_chunk_number = self.receive_and_buffer()
             logging.debug("first_received_chunk_number = %s", first_received_chunk_number)
-            # Se posiciona el puntero de play en el buffer a la posición = (primer chunk recibido - chunks_to_buffer)
+            # Posiciona el puntero en el buffer justo en el frame adecuado
             self.played_chunk_number = (first_received_chunk_number - self.chunks_to_buffer) % self.cells_in_buffer
+
+            # Bucle principal de buffering de audio (y de vídeo recibido, si es que corresponde)
             while True:
                 self.receive_and_buffer()
 
-class Buffering__verbose(Buffering, minimal_video.Minimal_Video__verbose):  # Hereda de Buffering y de la versión verbose de Minimal_Video.
+
+class Buffering__verbose(Buffering, minimal_video.Minimal_Video__verbose):
     def __init__(self):
         super().__init__()
-        #self.args = args
-        #Buffering.__init__(self)
-        #Minimal__verbose.__init__(self, args)
 
     def send(self, packed_chunk):
         Buffering.send(self, packed_chunk)
@@ -147,10 +152,6 @@ class Buffering__verbose(Buffering, minimal_video.Minimal_Video__verbose):  # He
             self.show_played_chunk(DAC)
         self.recorded_chunk = DAC
         self.played_chunk = ADC
-<<<<<<< HEAD
-=======
-        #self.recorded_chunk[512:,:]=20000 # <--------------------------------------------
->>>>>>> 5b5a48fc50a111921064f015612abe097e776bfa
 
     def _read_IO_and_play(self, DAC, frames, time_info, status):
         read_chunk = super()._read_IO_and_play(DAC, frames, time_info, status)
@@ -162,24 +163,14 @@ class Buffering__verbose(Buffering, minimal_video.Minimal_Video__verbose):  # He
 
     def loop_receive_and_buffer(self):
         first_received_chunk_number = self.receive_and_buffer()
-        if __debug__:
-            print("first_received_chunk_number =", first_received_chunk_number)
+        print("first_received_chunk_number =", first_received_chunk_number)
         self.played_chunk_number = (first_received_chunk_number - self.chunks_to_buffer) % self.cells_in_buffer
-<<<<<<< HEAD
         if minimal_video.args.show_spectrum:
             while self.total_number_of_sent_chunks < self.chunks_to_send:
                 self.receive_and_buffer()
-                self.update_display()  # PyGame cannot run in a thread :-/
+                self.update_display()
         else:
             while self.total_number_of_sent_chunks < self.chunks_to_send:
-=======
-        if minimal.args.show_spectrum:
-            while self.total_number_of_sent_chunks < self.chunks_to_send:# and not self.input_exhausted:
-                self.receive_and_buffer()
-                self.update_display() # PyGame cannot run in a thread :-/
-        else:
-            while self.total_number_of_sent_chunks < self.chunks_to_send:# and not self.input_exhausted:
->>>>>>> 5b5a48fc50a111921064f015612abe097e776bfa
                 self.receive_and_buffer()
 
     def run(self):
@@ -188,12 +179,25 @@ class Buffering__verbose(Buffering, minimal_video.Minimal_Video__verbose):  # He
         self.print_running_info()
         super().print_header()
         self.played_chunk_number = 0
+
+         # Inicia el hilo de captura de vídeo (si la captura está habilitada)
+        if self.capture_enabled:
+            t_capture = threading.Thread(target=self.capture_video_loop, daemon=True, name="CaptureThread")
+            t_capture.start()
+
+        # Inicia también el hilo de visualización de vídeo
+        if self.capture_enabled:
+            t_display = threading.Thread(target=self.display_video_loop, daemon=True, name="DisplayThread")
+            t_display.start()
+
+
         with self.stream(self._handler):
             cycle_feedback_thread.start()
             self.loop_receive_and_buffer()
 
+
 try:
-    import argcomplete  # <tab> completion for argparse.
+    import argcomplete
 except ImportError:
     logging.warning("Unable to import argcomplete (optional)")
 
@@ -210,19 +214,14 @@ if __name__ == "__main__":
         print(sd.query_devices())
         quit()
 
-<<<<<<< HEAD
     if minimal_video.args.show_stats or minimal_video.args.show_samples or minimal_video.args.show_spectrum:
-=======
-    if minimal.args.show_stats or minimal.args.show_samples or minimal.args.show_spectrum:
-        #intercom = Buffering__verbose(minimal.args)
->>>>>>> 5b5a48fc50a111921064f015612abe097e776bfa
-        intercom = Buffering__verbose()
+        intercom_app = Buffering__verbose()
     else:
-        intercom = Buffering()
+        intercom_app = Buffering()
 
     try:
-        intercom.run()
+        intercom_app.run()
     except KeyboardInterrupt:
         minimal_video.parser.exit("\nSIGINT received")
     finally:
-        intercom.print_final_averages()
+        intercom_app.print_final_averages()
