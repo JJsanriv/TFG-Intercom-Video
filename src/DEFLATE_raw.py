@@ -28,7 +28,7 @@ class DEFLATE_Raw(buffer.Buffering):
         chunk = zlib.decompress(compressed_chunk)
         chunk = np.frombuffer(chunk, dtype=np.int16)
         try:
-            chunk = chunk.reshape((minimal.args.frames_per_chunk, self.NUMBER_OF_CHANNELS))
+            chunk = chunk.reshape((minimal.args.frames_per_chunk, minimal.args.number_of_channels))
         except ValueError:
             logging.warning("Input exhausted! :-/")
             self.input_exhausted = True
@@ -37,14 +37,20 @@ class DEFLATE_Raw(buffer.Buffering):
 class DEFLATE_Raw__verbose(DEFLATE_Raw, buffer.Buffering__verbose):
     def __init__(self):
         super().__init__()
-        self.standard_deviation = np.zeros(self.NUMBER_OF_CHANNELS) # Standard_Deviation of the chunks_per_cycle chunks.
-        self.entropy = np.zeros(self.NUMBER_OF_CHANNELS) # Entropy of the chunks_per_cycle chunks.
-        self.bps = np.zeros(self.NUMBER_OF_CHANNELS) # Bits Per Symbol of the chunks_per_cycle compressed chunks.
+        self.standard_deviation = np.zeros(minimal.args.number_of_channels) # Standard_Deviation of the chunks_per_cycle chunks.
+        self.entropy = np.zeros(minimal.args.number_of_channels) # Entropy of the chunks_per_cycle chunks.
+        self.bps = np.zeros(minimal.args.number_of_channels) # Bits Per Symbol of the chunks_per_cycle compressed chunks.
         self.chunks_in_the_cycle = []
 
-        self.average_standard_deviation = np.zeros(self.NUMBER_OF_CHANNELS)
-        self.average_entropy = np.zeros(self.NUMBER_OF_CHANNELS)
-        self.average_bps = np.zeros(self.NUMBER_OF_CHANNELS)
+        self.average_standard_deviation = np.zeros(minimal.args.number_of_channels)
+        self.average_entropy = np.zeros(minimal.args.number_of_channels)
+        self.average_bps = np.zeros(minimal.args.number_of_channels)
+        if minimal.args.number_of_channels != 2:
+            self.unpack = self.unpack_mono
+            self.compute_entropy = self.compute_entropy_mono
+        else:
+            self.unppack = self.unpack_stereo
+            self.compute_entropy = self.compute_entropy_stereo
 
     def stats(self):
         string = super().stats()
@@ -91,7 +97,15 @@ class DEFLATE_Raw__verbose(DEFLATE_Raw, buffer.Buffering__verbose):
         for i in probs:
             entropy -= i * math.log(i, 2)
 
+        #print(sequence_of_symbols)
         return entropy
+
+    def compute_entropy_stereo(self, concatenated_chunks):
+        self.entropy[0] = self.entropy_in_bits_per_symbol(concatenated_chunks[:, 0])
+        self.entropy[1] = self.entropy_in_bits_per_symbol(concatenated_chunks[:, 1])
+
+    def compute_entropy_mono(self, concatenated_chunks):
+        self.entropy[0] = self.entropy_in_bits_per_symbol(concatenated_chunks[:, 0])
 
     def cycle_feedback(self):
         try:
@@ -101,28 +115,27 @@ class DEFLATE_Raw__verbose(DEFLATE_Raw, buffer.Buffering__verbose):
         self.standard_deviation = np.sqrt(np.var(concatenated_chunks, axis=0))
         self.average_standard_deviation = self.moving_average(self.average_standard_deviation, self.standard_deviation, self.cycle)
 
-        self.entropy[0] = self.entropy_in_bits_per_symbol(concatenated_chunks[:, 0])
-        self.entropy[1] = self.entropy_in_bits_per_symbol(concatenated_chunks[:, 1])
+        self.compute_entropy(concatenated_chunks)
         self.average_entropy = self.moving_average(self.average_entropy, self.entropy, self.cycle)
 
         self.average_bps = self.moving_average(self.average_bps, self.bps, self.cycle)
 
         super().cycle_feedback()
         self.chunks_in_the_cycle = []
-        self.bps = np.zeros(self.NUMBER_OF_CHANNELS)
+        self.bps = np.zeros(minimal.args.number_of_channels)
         
-    def _record_io_and_play(self, indata, outdata, frames, time, status):
-        super()._record_io_and_play(indata, outdata, frames, time, status)
+    def _record_IO_and_play(self, indata, outdata, frames, time, status):
+        super()._record_IO_and_play(indata, outdata, frames, time, status)
         self.chunks_in_the_cycle.append(indata)
         # Remember: indata contains the recorded chunk and outdata,
         # the played chunk.
 
-    def _read_io_and_play(self, outdata, frames, time, status):
-        read_chunk = super()._read_io_and_play(outdata, frames, time, status)
+    def _read_IO_and_play(self, outdata, frames, time, status):
+        read_chunk = super()._read_IO_and_play(outdata, frames, time, status)
         self.chunks_in_the_cycle.append(read_chunk)
         return read_chunk
 
-    def unpack(self, packed_chunk):
+    def unpack_stereo(self, packed_chunk):
         len_packed_chunk = len(packed_chunk)
         self.bps[0] += len_packed_chunk*4
         self.bps[1] += len_packed_chunk*4
@@ -130,6 +143,11 @@ class DEFLATE_Raw__verbose(DEFLATE_Raw, buffer.Buffering__verbose):
         return DEFLATE_Raw.unpack(self, packed_chunk)
         #except ValueError:
         #pass
+
+    def unpack_mono(self, packed_chunk):
+        len_packed_chunk = len(packed_chunk)
+        self.bps[0] += len_packed_chunk*4
+        return DEFLATE_Raw.unpack(self, packed_chunk)
 
 try:
     import argcomplete  # <tab> completion for argparse.
@@ -143,7 +161,7 @@ if __name__ == "__main__":
     except Exception:
         logging.warning("argcomplete not working :-/")
     minimal.args = minimal.parser.parse_known_args()[0]
-    if minimal.args.show_stats or minimal.args.show_samples:
+    if minimal.args.show_stats or minimal.args.show_samples or minimal.args.show_spectrum:
         intercom = DEFLATE_Raw__verbose()
     else:
         intercom = DEFLATE_Raw()

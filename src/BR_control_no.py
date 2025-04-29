@@ -89,12 +89,12 @@ class BR_Control_No__verbose(BR_Control_No, Compression__verbose):
     
     def __init__(self):
         super().__init__()
-        self.average_RMSE = np.zeros(self.NUMBER_OF_CHANNELS)
-        self.average_SNR = np.zeros(self.NUMBER_OF_CHANNELS)
-        self.accumulated_RMSE_per_cycle = np.zeros(self.NUMBER_OF_CHANNELS)
-        self.accumulated_SNR_per_cycle = np.zeros(self.NUMBER_OF_CHANNELS)
-        self.average_RMSE_per_cycle = np.zeros(self.NUMBER_OF_CHANNELS)
-        self.average_SNR_per_cycle = np.zeros(self.NUMBER_OF_CHANNELS)
+        self.average_RMSE = np.zeros(minimal.args.number_of_channels)
+        self.average_SNR = np.zeros(minimal.args.number_of_channels)
+        self.accumulated_RMSE_per_cycle = np.zeros(minimal.args.number_of_channels)
+        self.accumulated_SNR_per_cycle = np.zeros(minimal.args.number_of_channels)
+        self.average_RMSE_per_cycle = np.zeros(minimal.args.number_of_channels)
+        self.average_SNR_per_cycle = np.zeros(minimal.args.number_of_channels)
 
         self.recorded_chunks_buff = [None] * self.cells_in_buffer
         for i in range(self.cells_in_buffer):
@@ -103,7 +103,7 @@ class BR_Control_No__verbose(BR_Control_No, Compression__verbose):
     def stats(self):
         string = super().stats()
         string += "{:>5d}".format(self.quantization_step_size)
-        string += " {}".format(['{:5d}'.format(i) for i in np.round(10**4 * self.average_RMSE_per_cycle / self.frames_per_cycle / self.NUMBER_OF_CHANNELS).astype(int)])
+        string += " {}".format(['{:5d}'.format(i) for i in np.round(10**4 * self.average_RMSE_per_cycle / self.frames_per_cycle / minimal.args.number_of_channels).astype(int)])
         string += " {}".format(['{:3d}'.format(i) for i in np.round(self.average_SNR_per_cycle).astype(int)])
 
         return string
@@ -130,7 +130,7 @@ class BR_Control_No__verbose(BR_Control_No, Compression__verbose):
     def averages(self):
         string = super().averages()
         string += 5*' '
-        string += " {}".format(['{:5d}'.format(i) for i in np.round(10**4 * self.average_RMSE / self.frames_per_cycle / self.NUMBER_OF_CHANNELS).astype(int)])
+        string += " {}".format(['{:5d}'.format(i) for i in np.round(10**4 * self.average_RMSE / self.frames_per_cycle / minimal.args.number_of_channels).astype(int)])
         string += " {}".format(['{:3d}'.format(i) for i in np.round(self.average_SNR).astype(int)])
         return string
         
@@ -161,14 +161,14 @@ class BR_Control_No__verbose(BR_Control_No, Compression__verbose):
             print("\033[32mbr_control: ", end=''); self.show_indata(recorded_chunk.astype(np.int))
             print("\033[m", end='')
             # Remember that
-            # buffer.Buffering__verbose._record_io_and_play shows also
+            # buffer.Buffering__verbose._record_IO_and_play shows also
             # indata and outdata.
         
             print("\033[32mbr_control: ", end=''); self.show_outdata(played_chunk.astype(np.int))
             print("\033[m", end='')
 
-        square_signal = [None] * self.NUMBER_OF_CHANNELS
-        for c in range(self.NUMBER_OF_CHANNELS):
+        square_signal = [None] * minimal.args.number_of_channels
+        for c in range(minimal.args.number_of_channels):
             square_signal[c] = recorded_chunk[:, c] * recorded_chunk[:, c]
         # Notice that numpy uses the symbol "*" for computing the dot
         # product of two arrays "a" and "b", that basically is the
@@ -184,46 +184,46 @@ class BR_Control_No__verbose(BR_Control_No, Compression__verbose):
         # are equal, generates the same result. Among all these
         # alternatives, the dot product seems to be the faster one.
        
-        signal_energy = [None] * self.NUMBER_OF_CHANNELS
-        for c in range(self.NUMBER_OF_CHANNELS):
+        signal_energy = [None] * minimal.args.number_of_channels
+        for c in range(minimal.args.number_of_channels):
             signal_energy[c] = np.sum( square_signal[c] )
  
         # Compute distortions
-        error_signal = [None] * self.NUMBER_OF_CHANNELS
-        for c in range(self.NUMBER_OF_CHANNELS):
+        error_signal = [None] * minimal.args.number_of_channels
+        for c in range(minimal.args.number_of_channels):
             error_signal[c] = recorded_chunk[:, c] - played_chunk[:, c]
             
-        square_error_signal = [None] * self.NUMBER_OF_CHANNELS
-        for c in range(self.NUMBER_OF_CHANNELS):
+        square_error_signal = [None] * minimal.args.number_of_channels
+        for c in range(minimal.args.number_of_channels):
             square_error_signal[c] = error_signal[c] * error_signal[c]
             
-        error_energy = [None] * self.NUMBER_OF_CHANNELS
-        for c in range(self.NUMBER_OF_CHANNELS):
+        error_energy = [None] * minimal.args.number_of_channels
+        for c in range(minimal.args.number_of_channels):
             error_energy[c] = np.sum( square_error_signal[c] )
 
-        RMSE = [None] * self.NUMBER_OF_CHANNELS
-        for c in range(self.NUMBER_OF_CHANNELS):
+        RMSE = [None] * minimal.args.number_of_channels
+        for c in range(minimal.args.number_of_channels):
             RMSE[c] = math.sqrt( error_energy[c] )
             self.accumulated_RMSE_per_cycle[c] += RMSE[c]
 
-        SNR = [None] * self.NUMBER_OF_CHANNELS
-        for c in range(self.NUMBER_OF_CHANNELS):
+        SNR = [None] * minimal.args.number_of_channels
+        for c in range(minimal.args.number_of_channels):
             if error_energy[c].any():
                 if signal_energy[c].any():
                     SNR[c] = 10.0 * math.log( signal_energy[c] / error_energy[c] )
                     self.accumulated_SNR_per_cycle[c] += SNR[c]
 
-    def _record_io_and_play(self, indata, outdata, frames, time, status):
-        super()._record_io_and_play(indata, outdata, frames, time, status)
+    def _record_IO_and_play(self, indata, outdata, frames, time, status):
+        super()._record_IO_and_play(indata, outdata, frames, time, status)
         self.compute(indata, outdata)
 
-    def _read_io_and_play(self, outdata, frames, time, status):
-        chunk = super()._read_io_and_play(outdata, frames, time, status)
+    def _read_IO_and_play(self, outdata, frames, time, status):
+        chunk = super()._read_IO_and_play(outdata, frames, time, status)
         self.compute(chunk, outdata)
 
     def print_final_averages(self):
         super().print_final_averages()
-        print(f"Average RMSE (Root Mean Square Error) per sample = {self.average_RMSE / self.frames_per_cycle / self.NUMBER_OF_CHANNELS}")
+        print(f"Average RMSE (Root Mean Square Error) per sample = {self.average_RMSE / self.frames_per_cycle / minimal.args.number_of_channels}")
         print(f"Average SNR (Signal Noise Ratio) in decibels = {self.average_SNR}")
 
 try:
@@ -238,7 +238,7 @@ if __name__ == "__main__":
     except Exception:
         logging.warning("argcomplete not working :-/")
     minimal.args = minimal.parser.parse_args()
-    if minimal.args.show_stats or minimal.args.show_samples:
+    if minimal.args.show_stats or minimal.args.show_samples or minimal.args.show_spectrum:
         intercom = BR_Control_No__verbose()
     else:
         intercom = BR_Control_No()

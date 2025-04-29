@@ -58,6 +58,10 @@ class Buffering(minimal_video.Minimal_Video):  # Hereda de Minimal_Video en luga
         chunk = packed_chunk[2:]
         # Convertir a array de int16.
         chunk = np.frombuffer(chunk, dtype=np.int16)
+<<<<<<< HEAD
+=======
+        #chunk = chunk.reshape(minimal.args.frames_per_chunk, minimal.args.number_of_channels)
+>>>>>>> 5b5a48fc50a111921064f015612abe097e776bfa
         return chunk_number, chunk
 
     def buffer_chunk(self, chunk_number, chunk):
@@ -69,7 +73,11 @@ class Buffering(minimal_video.Minimal_Video):  # Hereda de Minimal_Video en luga
 
     def play_chunk(self, DAC, chunk):
         self.played_chunk_number = (self.played_chunk_number + 1) % self.cells_in_buffer
+<<<<<<< HEAD
         chunk = chunk.reshape(minimal_video.args.frames_per_chunk, minimal_video.args.number_of_channels)
+=======
+        chunk = chunk.reshape(minimal.args.frames_per_chunk, minimal.args.number_of_channels)
+>>>>>>> 5b5a48fc50a111921064f015612abe097e776bfa
         DAC[:] = chunk
 
     def receive(self):
@@ -116,6 +124,9 @@ class Buffering(minimal_video.Minimal_Video):  # Hereda de Minimal_Video en luga
 class Buffering__verbose(Buffering, minimal_video.Minimal_Video__verbose):  # Hereda de Buffering y de la versión verbose de Minimal_Video.
     def __init__(self):
         super().__init__()
+        #self.args = args
+        #Buffering.__init__(self)
+        #Minimal__verbose.__init__(self, args)
 
     def send(self, packed_chunk):
         Buffering.send(self, packed_chunk)
@@ -136,6 +147,10 @@ class Buffering__verbose(Buffering, minimal_video.Minimal_Video__verbose):  # He
             self.show_played_chunk(DAC)
         self.recorded_chunk = DAC
         self.played_chunk = ADC
+<<<<<<< HEAD
+=======
+        #self.recorded_chunk[512:,:]=20000 # <--------------------------------------------
+>>>>>>> 5b5a48fc50a111921064f015612abe097e776bfa
 
     def _read_IO_and_play(self, DAC, frames, time_info, status):
         read_chunk = super()._read_IO_and_play(DAC, frames, time_info, status)
@@ -150,12 +165,21 @@ class Buffering__verbose(Buffering, minimal_video.Minimal_Video__verbose):  # He
         if __debug__:
             print("first_received_chunk_number =", first_received_chunk_number)
         self.played_chunk_number = (first_received_chunk_number - self.chunks_to_buffer) % self.cells_in_buffer
+<<<<<<< HEAD
         if minimal_video.args.show_spectrum:
             while self.total_number_of_sent_chunks < self.chunks_to_send:
                 self.receive_and_buffer()
                 self.update_display()  # PyGame cannot run in a thread :-/
         else:
             while self.total_number_of_sent_chunks < self.chunks_to_send:
+=======
+        if minimal.args.show_spectrum:
+            while self.total_number_of_sent_chunks < self.chunks_to_send:# and not self.input_exhausted:
+                self.receive_and_buffer()
+                self.update_display() # PyGame cannot run in a thread :-/
+        else:
+            while self.total_number_of_sent_chunks < self.chunks_to_send:# and not self.input_exhausted:
+>>>>>>> 5b5a48fc50a111921064f015612abe097e776bfa
                 self.receive_and_buffer()
 
     def run(self):
@@ -186,7 +210,12 @@ if __name__ == "__main__":
         print(sd.query_devices())
         quit()
 
+<<<<<<< HEAD
     if minimal_video.args.show_stats or minimal_video.args.show_samples or minimal_video.args.show_spectrum:
+=======
+    if minimal.args.show_stats or minimal.args.show_samples or minimal.args.show_spectrum:
+        #intercom = Buffering__verbose(minimal.args)
+>>>>>>> 5b5a48fc50a111921064f015612abe097e776bfa
         intercom = Buffering__verbose()
     else:
         intercom = Buffering()

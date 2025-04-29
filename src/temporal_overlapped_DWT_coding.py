@@ -4,7 +4,7 @@
 ''' Real-time Audio Intercommunicator (removes intra-channel redundancy with a DWT (Discrete Wavelet Transform)). '''
 
 import numpy as np
-import pywt
+import pywt  # pip install pywavelets
 import math
 import minimal
 import logging
@@ -13,7 +13,6 @@ from stereo_MST_coding_32 import Stereo_MST_Coding_32 as Stereo_Coding
 
 from temporal_no_overlapped_DWT_coding import Temporal_No_Overlapped_DWT
 from temporal_no_overlapped_DWT_coding import Temporal_No_Overlapped_DWT__verbose
-
 
 class Temporal_Overlapped_DWT(Temporal_No_Overlapped_DWT):
 
@@ -25,15 +24,15 @@ class Temporal_Overlapped_DWT(Temporal_No_Overlapped_DWT):
 
         # Structure to keep chunks during encoding
         self.e_chunk_list = []
-        self.e_chunk_list.append(np.zeros((minimal.args.frames_per_chunk, self.NUMBER_OF_CHANNELS), dtype=np.int32))
-        self.e_chunk_list.append(np.zeros((minimal.args.frames_per_chunk, self.NUMBER_OF_CHANNELS), dtype=np.int32))
-        self.e_chunk_list.append(np.zeros((minimal.args.frames_per_chunk, self.NUMBER_OF_CHANNELS), dtype=np.int32))
+        self.e_chunk_list.append(np.zeros((minimal.args.frames_per_chunk, minimal.args.number_of_channels), dtype=np.int32))
+        self.e_chunk_list.append(np.zeros((minimal.args.frames_per_chunk, minimal.args.number_of_channels), dtype=np.int32))
+        self.e_chunk_list.append(np.zeros((minimal.args.frames_per_chunk, minimal.args.number_of_channels), dtype=np.int32))
 
         # Structure to keep chunks during decoding
         self.d_chunk_list = []
-        self.d_chunk_list.append(np.zeros((minimal.args.frames_per_chunk, self.NUMBER_OF_CHANNELS), dtype=np.int32))
-        self.d_chunk_list.append(np.zeros((minimal.args.frames_per_chunk, self.NUMBER_OF_CHANNELS), dtype=np.int32))
-        self.d_chunk_list.append(np.zeros((minimal.args.frames_per_chunk, self.NUMBER_OF_CHANNELS), dtype=np.int32))
+        self.d_chunk_list.append(np.zeros((minimal.args.frames_per_chunk, minimal.args.number_of_channels), dtype=np.int32))
+        self.d_chunk_list.append(np.zeros((minimal.args.frames_per_chunk, minimal.args.number_of_channels), dtype=np.int32))
+        self.d_chunk_list.append(np.zeros((minimal.args.frames_per_chunk, minimal.args.number_of_channels), dtype=np.int32))
 
         # Extended slices
         zero_array = np.zeros(shape=minimal.args.frames_per_chunk+2*self.number_of_overlapped_samples)
@@ -58,7 +57,7 @@ class Temporal_Overlapped_DWT(Temporal_No_Overlapped_DWT):
         extended_DWT_chunk = self.extended_DWT_encode(extended_chunk)
 
         # Decomposition subset
-        decomp_subset = np.zeros((0, self.NUMBER_OF_CHANNELS), dtype=np.int32)
+        decomp_subset = np.zeros((0, minimal.args.number_of_channels), dtype=np.int32)
         decomp_subset = np.concatenate(( decomp_subset, extended_DWT_chunk[self.extended_slices[0][0]] [o//2**self.dwt_levels : -o//2**self.dwt_levels] ))
         for i in range(self.dwt_levels):
             decomp_subset = np.concatenate(( decomp_subset, extended_DWT_chunk[self.extended_slices[i+1]['d'][0]] [o//2**(self.dwt_levels - i) : -o//2**(self.dwt_levels - i)] ))
@@ -71,8 +70,8 @@ class Temporal_Overlapped_DWT(Temporal_No_Overlapped_DWT):
         return decomp_subset
 
     def extended_DWT_encode(self, chunk):
-        DWT_chunk = np.empty((minimal.args.frames_per_chunk + 2*self.number_of_overlapped_samples, self.NUMBER_OF_CHANNELS), dtype=np.int32)
-        for c in range(self.NUMBER_OF_CHANNELS):
+        DWT_chunk = np.empty((minimal.args.frames_per_chunk + 2*self.number_of_overlapped_samples, minimal.args.number_of_channels), dtype=np.int32)
+        for c in range(minimal.args.number_of_channels):
             channel_coeffs = pywt.wavedec(chunk[:, c], wavelet=self.wavelet, level=self.dwt_levels, mode="per")
             channel_DWT_chunk = pywt.coeffs_to_array(channel_coeffs)[0]
             DWT_chunk[:, c] = channel_DWT_chunk
@@ -88,7 +87,7 @@ class Temporal_Overlapped_DWT(Temporal_No_Overlapped_DWT):
         self.d_chunk_list[2] = chunk_DWT
 
         # Build extended decomposition
-        extended_DWT_chunk = np.zeros((0, self.NUMBER_OF_CHANNELS), dtype=np.int32)
+        extended_DWT_chunk = np.zeros((0, minimal.args.number_of_channels), dtype=np.int32)
         extended_DWT_chunk = np.concatenate(( extended_DWT_chunk, self.d_chunk_list[0] [self.slices[0][0]] [ -o//2**(self.dwt_levels) : ] ))
         extended_DWT_chunk = np.concatenate(( extended_DWT_chunk, self.d_chunk_list[1] [self.slices[0][0]] ))
         extended_DWT_chunk = np.concatenate(( extended_DWT_chunk, self.d_chunk_list[2] [self.slices[0][0]] [ : o//2**(self.dwt_levels) ] ))        
@@ -108,8 +107,8 @@ class Temporal_Overlapped_DWT(Temporal_No_Overlapped_DWT):
         return Stereo_Coding.synthesize(self,extended_chunk[o:o+fpc])
 
     def extended_DWT_decode(self, chunk_DWT):
-        chunk = np.empty((minimal.args.frames_per_chunk + 2*self.number_of_overlapped_samples, self.NUMBER_OF_CHANNELS), dtype=np.int32)
-        for c in range(self.NUMBER_OF_CHANNELS):
+        chunk = np.empty((minimal.args.frames_per_chunk + 2*self.number_of_overlapped_samples, minimal.args.number_of_channels), dtype=np.int32)
+        for c in range(minimal.args.number_of_channels):
             channel_coeffs = pywt.array_to_coeffs(chunk_DWT[:, c], self.extended_slices, output_format="wavedec")
             chunk[:, c] = pywt.waverec(channel_coeffs, wavelet=self.wavelet, mode="per")
         return chunk
@@ -118,8 +117,8 @@ class Temporal_Overlapped_DWT(Temporal_No_Overlapped_DWT):
     '''
     # Ignores overlapping
     def synthesize(self, chunk_DWT):
-        chunk = np.empty((minimal.args.frames_per_chunk, self.NUMBER_OF_CHANNELS), dtype=np.int32)
-        for c in range(self.NUMBER_OF_CHANNELS):
+        chunk = np.empty((minimal.args.frames_per_chunk, minimal.args.number_of_channels), dtype=np.int32)
+        for c in range(minimal.args.number_of_channels):
             channel_coeffs = pywt.array_to_coeffs(chunk_DWT[:, c], self.slices, output_format="wavedec")
             chunk[:, c] = pywt.waverec(channel_coeffs, wavelet=self.wavelet, mode="per")
         chunk = Stereo_Coding.synthesize(self,chunk)
@@ -144,14 +143,14 @@ class Temporal_Overlapped_DWT__verbose(Temporal_Overlapped_DWT, Temporal_No_Over
             print("\033[32mbr_control: ", end=''); self.show_indata(recorded_chunk.astype(np.int))
             print("\033[m", end='')
             # Remember that
-            # buffer.Buffering__verbose._record_io_and_play shows also
+            # buffer.Buffering__verbose._record_IO_and_play shows also
             # indata and outdata.
 
             print("\033[32mbr_control: ", end=''); self.show_outdata(played_chunk.astype(np.int))
             print("\033[m", end='')
 
-        square_signal = [None] * self.NUMBER_OF_CHANNELS
-        for c in range(self.NUMBER_OF_CHANNELS):
+        square_signal = [None] * minimal.args.number_of_channels
+        for c in range(minimal.args.number_of_channels):
             square_signal[c] = recorded_chunk[:, c] * recorded_chunk[:, c]
         # Notice that numpy uses the symbol "*" for computing the dot
         # product of two arrays "a" and "b", that basically is the
@@ -167,30 +166,30 @@ class Temporal_Overlapped_DWT__verbose(Temporal_Overlapped_DWT, Temporal_No_Over
         # are equal, generates the same result. Among all these
         # alternatives, the dot product seems to be the faster one.
 
-        signal_energy = [None] * self.NUMBER_OF_CHANNELS
-        for c in range(self.NUMBER_OF_CHANNELS):
+        signal_energy = [None] * minimal.args.number_of_channels
+        for c in range(minimal.args.number_of_channels):
             signal_energy[c] = np.sum( square_signal[c] )
 
         # Compute distortions
-        error_signal = [None] * self.NUMBER_OF_CHANNELS
-        for c in range(self.NUMBER_OF_CHANNELS):
+        error_signal = [None] * minimal.args.number_of_channels
+        for c in range(minimal.args.number_of_channels):
             error_signal[c] = recorded_chunk[:, c] - played_chunk[:, c]
 
-        square_error_signal = [None] * self.NUMBER_OF_CHANNELS
-        for c in range(self.NUMBER_OF_CHANNELS):
+        square_error_signal = [None] * minimal.args.number_of_channels
+        for c in range(minimal.args.number_of_channels):
             square_error_signal[c] = error_signal[c] * error_signal[c]
 
-        error_energy = [None] * self.NUMBER_OF_CHANNELS
-        for c in range(self.NUMBER_OF_CHANNELS):
+        error_energy = [None] * minimal.args.number_of_channels
+        for c in range(minimal.args.number_of_channels):
             error_energy[c] = np.sum( square_error_signal[c] )
 
-        RMSE = [None] * self.NUMBER_OF_CHANNELS
-        for c in range(self.NUMBER_OF_CHANNELS):
+        RMSE = [None] * minimal.args.number_of_channels
+        for c in range(minimal.args.number_of_channels):
             RMSE[c] = math.sqrt( error_energy[c] )
             self.accumulated_RMSE_per_cycle[c] += RMSE[c]
 
-        SNR = [None] * self.NUMBER_OF_CHANNELS
-        for c in range(self.NUMBER_OF_CHANNELS):
+        SNR = [None] * minimal.args.number_of_channels
+        for c in range(minimal.args.number_of_channels):
             if error_energy[c].any():
                 if signal_energy[c].any():
                     SNR[c] = 10.0 * math.log( signal_energy[c] / error_energy[c] )
@@ -208,7 +207,7 @@ if __name__ == "__main__":
     except Exception:
         logging.warning("argcomplete not working :-/")
     minimal.args = minimal.parser.parse_known_args()[0]
-    if minimal.args.show_stats or minimal.args.show_samples:
+    if minimal.args.show_stats or minimal.args.show_samples or minimal.args.show_spectrum:
         intercom = Temporal_Overlapped_DWT__verbose()
     else:
         intercom = Temporal_Overlapped_DWT()

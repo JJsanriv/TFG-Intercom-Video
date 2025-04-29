@@ -19,10 +19,10 @@ class DEFLATE_BytePlanes3(DEFLATE_raw.DEFLATE_Raw):
 
     def pack(self, chunk_number, chunk):
         assert np.all( abs(chunk) < (1<<24) )
-        channel_0_MSB1 = (chunk[:, 0] // (1<<16)).astype(np.int8)
+        channel_0_MSB1 = (chunk[:, 0].astype(np.int32) // (1<<16)).astype(np.int8)
         channel_0_MSB0 = (chunk[:, 0] // (1<<8)).astype(np.uint8)
         channel_0_LSB  = (chunk[:, 0] % (1<<8)).astype(np.uint8)
-        channel_1_MSB1 = (chunk[:, 1] // (1<<16)).astype(np.int8)
+        channel_1_MSB1 = (chunk[:, 1].astype(np.int32) // (1<<16)).astype(np.int8)
         channel_1_MSB0 = (chunk[:, 1] // (1<<8)).astype(np.uint8)
         channel_1_LSB  = (chunk[:, 1] % (1<<8)).astype(np.uint8)
         MSB1 = np.concatenate([channel_0_MSB1, channel_1_MSB1])
@@ -52,8 +52,8 @@ class DEFLATE_BytePlanes3(DEFLATE_raw.DEFLATE_Raw):
         channel_MSB0 = np.frombuffer(buffer_MSB0, dtype=np.uint8)
         channel_LSB  = np.frombuffer(buffer_LSB, dtype=np.uint8)
         chunk = np.empty((minimal.args.frames_per_chunk, 2), dtype=np.int32)
-        chunk[:, 0] = channel_MSB1[:len(channel_MSB1)//2]*(1<<16) + channel_MSB0[:len(channel_MSB0)//2]*(1<<8) + channel_LSB[:len(channel_LSB)//2]
-        chunk[:, 1] = channel_MSB1[len(channel_MSB1)//2:]*(1<<16) + channel_MSB0[len(channel_MSB0)//2:]*(1<<8) + channel_LSB[len(channel_LSB)//2:]
+        chunk[:, 0] = channel_MSB1[:len(channel_MSB1)//2].astype(np.uint32)*(1<<16) + channel_MSB0[:len(channel_MSB0)//2].astype(np.uint16)*(1<<8) + channel_LSB[:len(channel_LSB)//2]
+        chunk[:, 1] = channel_MSB1[len(channel_MSB1)//2:].astype(np.uint32)*(1<<16) + channel_MSB0[len(channel_MSB0)//2:].astype(np.uint16)*(1<<8) + channel_LSB[len(channel_LSB)//2:]
         return chunk_number, chunk
 
 class DEFLATE_BytePlanes3__verbose(DEFLATE_BytePlanes3, DEFLATE_raw.DEFLATE_Raw__verbose):
@@ -83,7 +83,7 @@ if __name__ == "__main__":
         logging.warning("argcomplete not working :-/")
 
     minimal.args = minimal.parser.parse_known_args()[0]
-    if minimal.args.show_stats or minimal.args.show_samples:
+    if minimal.args.show_stats or minimal.args.show_samples or minimal.args.show_spectrum:
         intercom = DEFLATE_BytePlanes3__verbose()
     else:
         intercom = DEFLATE_BytePlanes3()

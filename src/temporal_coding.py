@@ -4,7 +4,7 @@
 '''Base class. No DWT.'''
 
 import numpy as np
-import pywt
+import pywt  # pip install pywavelets
 import minimal
 from stereo_coding_32 import Stereo_Coding_32 as Stereo_Coding
 import logging
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     except Exception:
         logging.warning("argcomplete not working :-/")
     minimal.args = minimal.parser.parse_known_args()[0]
-    if minimal.args.show_stats or minimal.args.show_samples:
+    if minimal.args.show_stats or minimal.args.show_samples or minimal.args.show_spectrum:
         intercom = Temporal_Coding__verbose()
     else:
         intercom = Temporal_Coding()

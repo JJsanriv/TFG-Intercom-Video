@@ -17,23 +17,41 @@ class DEFLATE_Serial(DEFLATE_raw.DEFLATE_Raw):
     def __init__(self):
         super().__init__()
         logging.info(__doc__)
+        if minimal.args.number_of_channels != 2:
+            self.pack = self.pack_mono
+            self.unpack = self.unpack_mono
+        else:
+            self.pack = self.pack_stereo
+            self.unpack = self.unpack_stereo
 
-    def pack(self, chunk_number, chunk):
+    def pack_stereo(self, chunk_number, chunk):
         chunk = np.stack([chunk[:, 0], chunk[:, 1]])
         compressed_chunk = zlib.compress(chunk)
         packed_chunk = struct.pack("!H", chunk_number) + compressed_chunk
         return packed_chunk
 
-    def unpack(self, packed_chunk):
+    def pack_mono(self, chunk_number, chunk):
+        compressed_chunk = zlib.compress(chunk)
+        packed_chunk = struct.pack("!H", chunk_number) + compressed_chunk
+        return packed_chunk
+
+    def unpack_stereo(self, packed_chunk):
         (chunk_number,) = struct.unpack("!H", packed_chunk[:2])
         compressed_chunk = packed_chunk[2:]
         chunk = zlib.decompress(compressed_chunk)
         chunk = np.frombuffer(chunk, dtype=np.int16)
-        chunk = chunk.reshape((self.NUMBER_OF_CHANNELS, minimal.args.frames_per_chunk))
+        chunk = chunk.reshape((minimal.args.number_of_channels, minimal.args.frames_per_chunk))
         reordered_chunk = np.empty((minimal.args.frames_per_chunk*2, ), dtype=np.int16)
         reordered_chunk[0::2] = chunk[0, :]
         reordered_chunk[1::2] = chunk[1, :]
-        chunk = reordered_chunk.reshape((minimal.args.frames_per_chunk, self.NUMBER_OF_CHANNELS))
+        chunk = reordered_chunk.reshape((minimal.args.frames_per_chunk, minimal.args.number_of_channels))
+        return chunk_number, chunk
+
+    def unpack_mono(self, packed_chunk):
+        (chunk_number,) = struct.unpack("!H", packed_chunk[:2])
+        compressed_chunk = packed_chunk[2:]
+        chunk = zlib.decompress(compressed_chunk)
+        chunk = np.frombuffer(chunk, dtype=np.int16)
         return chunk_number, chunk
 
 class DEFLATE_Serial__verbose(DEFLATE_Serial, DEFLATE_raw.DEFLATE_Raw__verbose):
@@ -58,7 +76,7 @@ if __name__ == "__main__":
     except Exception:
         logging.warning("argcomplete not working :-/")
     minimal.args = minimal.parser.parse_known_args()[0]
-    if minimal.args.show_stats or minimal.args.show_samples:
+    if minimal.args.show_stats or minimal.args.show_samples or minimal.args.show_spectrum:
         intercom = DEFLATE_Serial__verbose()
     else:
         intercom = DEFLATE_Serial()
