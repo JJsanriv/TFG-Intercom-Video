@@ -455,6 +455,9 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
         except Exception as e:
             print(f"Error inesperado en receive_video: {e}")
 
+    def moving_average(self, average, new_sample, number_of_samples):
+        return average + (new_sample - average) / number_of_samples
+
     def loop_cycle_feedback(self):
         header1 = f"{'':8s} {'audio':>16s} {'video':>16s} {'audio':>16s} {'video':>16s} {'Global':>8s}"
         header2 = f"{'cycle':8s} {'sent':>8s} {'recv':>8s} {'sent':>8s} {'recv':>8s} {'KBPS':>8s} {'KBPS':>8s} {'KBPS':>8s} {'KBPS':>8s} {'%CPU':>4s} {'%CPU':>4s}"
@@ -462,18 +465,37 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
         print(header2)
         print("=" * 80)
         cycle = 1
-        old_time = time.time()
+        self.old_time = time.time()
+        self.old_CPU_time = psutil.Process().cpu_times()[0]
+        # Inicializamos las variables de promedio,
+        # en caso de que no se hayan inicializado en __init__
+        self.average_CPU_usage = 0
+        self.average_sent_KBPS = 0
+        self.average_received_KBPS = 0
+
         while self.running:
             now = time.time()
-            elapsed = max(now - old_time, 0.001)
+            elapsed = max(now - self.old_time, 0.001)
+            elapsed_CPU_time = psutil.Process().cpu_times()[0] - self.old_CPU_time
+            self.CPU_usage = 100 * elapsed_CPU_time / elapsed
+            self.global_CPU_usage = psutil.cpu_percent(interval=None)
+            
             audio_sent_kbps = int(self.sent_bytes_count * 8 / 1000 / elapsed)
             audio_recv_kbps = int(self.received_bytes_count * 8 / 1000 / elapsed)
             video_sent_kbps = int(self.video_sent_bytes_count * 8 / 1000 / elapsed)
             video_recv_kbps = int(self.video_received_bytes_count * 8 / 1000 / elapsed)
-            cpu_usage = int(self.CPU_usage) if hasattr(self, 'CPU_usage') else 0
-            global_cpu = int(self.global_CPU_usage) if hasattr(self, 'global_CPU_usage') else 0
-            print(f"{cycle:8d} {self.sent_messages_count:8d} {self.received_messages_count:8d} {self.video_sent_messages_count:8d} {self.video_received_messages_count:8d} "
-                  f"{audio_sent_kbps:8d} {audio_recv_kbps:8d} {video_sent_kbps:8d} {video_recv_kbps:8d} {cpu_usage:4d} {global_cpu:4d}")
+            
+            # Actualizamos los promedios usando la función moving_average:
+            self.average_CPU_usage = self.moving_average(self.average_CPU_usage, self.CPU_usage, cycle)
+            self.average_sent_KBPS = self.moving_average(self.average_sent_KBPS, video_sent_kbps, cycle)
+            self.average_received_KBPS = self.moving_average(self.average_received_KBPS, video_recv_kbps, cycle)
+            
+            print(f"{cycle:8d} {self.sent_messages_count:8d} {self.received_messages_count:8d} "
+                f"{self.video_sent_messages_count:8d} {self.video_received_messages_count:8d} "
+                f"{audio_sent_kbps:8d} {audio_recv_kbps:8d} {video_sent_kbps:8d} {video_recv_kbps:8d} "
+                f"{int(self.CPU_usage):4d} {int(self.global_CPU_usage):4d}")
+            
+            # Reiniciamos los contadores para el siguiente ciclo:
             self.sent_bytes_count = 0
             self.received_bytes_count = 0
             self.sent_messages_count = 0
@@ -482,9 +504,17 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
             self.video_received_bytes_count = 0
             self.video_sent_messages_count = 0
             self.video_received_messages_count = 0
+            
             cycle += 1
-            old_time = now
+            self.old_time = now
+            self.old_CPU_time = psutil.Process().cpu_times()[0]
             time.sleep(1)
+
+    def print_final_averages(self):
+        print("\n" * 4)
+        print(f"CPU usage average = {self.average_CPU_usage:.2f} %")
+        print(f"Payload sent average = {self.average_sent_KBPS:.2f} kilo bits per second")
+        print(f"Payload received average = {self.average_received_KBPS:.2f} kilo bits per second")
 
     def run(self):
         if not hasattr(self, 'loop_cycle_feedback'):
