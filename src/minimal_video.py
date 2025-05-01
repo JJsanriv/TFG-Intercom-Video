@@ -14,6 +14,7 @@ Nuevos parámetros:
   --width              : Ancho del video (defecto 320).
   --height             : Alto del video (defecto 180).
   --fps                : Frames por segundo video (defecto 30).
+  --show_video         : Habilita la visualización del video. (desactivado por defecto)
 """
 
 import cv2
@@ -47,11 +48,13 @@ parser.add_argument("-v", "--video_payload_size", type=int, default=32000,
 parser.add_argument("-w", "--width", type=int, default=320, help="Ancho video (defecto 320)")
 parser.add_argument("-g", "--height", type=int, default=180, help="Alto video (defecto 180)")
 parser.add_argument("-z", "--fps", type=int, default=30, help="Frames por segundo video (defecto 30)")
+parser.add_argument("--show_video", action="store_true", default=False,
+                    help="Habilita la visualización del video (desactivado por defecto).")
 
 class Minimal_Video(minimal.Minimal):
     def __init__(self):
         minimal.args = args
-        self.is_local_mode = (args.destination_address == "localhost")
+        self.is_local_mode = (args.destination_address == "localhost" or args.destination_address == '127.0.0.1')
         super().__init__()
         self.video_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.video_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -171,6 +174,7 @@ class Minimal_Video(minimal.Minimal):
                     frag_idx += 1
                 if self.running:
                     self.frame_id_counter += 1
+                # Imprime el número de fragmentos (paquetes) enviados para este frame.
                 print(f"DEBUG: Frame #{self.frame_id_counter} sent in {frag_idx} fragments")
             except Exception as e:
                 print(f"Error procesando frame envío: {e}")
@@ -250,13 +254,14 @@ class Minimal_Video(minimal.Minimal):
         last_display_time = time.time()
         display_fps_target = 30
         min_display_interval = 1.0 / display_fps_target
-        # En modo local, mostramos la imagen captada; en modo red, la imagen recibida.
+        # Si estamos en modo local, mostrar "Local Webcam", de lo contrario, "Video Recibido"
         window_title = "Local Webcam" if self.is_local_mode else "Video Recibido"
         while self.running:
             now = time.time()
             wait_time = min_display_interval - (now - last_display_time)
             time.sleep(wait_time if wait_time > 0.001 else 0.001)
             frame_to_show = None
+            # Si estamos en modo local, usamos la imagen capturada; si estamos en modo red, usamos la imagen recibida.
             if self.is_local_mode:
                 with self.latest_captured_frame_lock:
                     if self.latest_captured_frame is not None:
@@ -276,6 +281,7 @@ class Minimal_Video(minimal.Minimal):
                 print("Tecla 'q' presionada, deteniendo...")
                 self.running = False
                 break
+
         try:
             cv2.destroyWindow(window_title)
         except cv2.error:
@@ -288,8 +294,9 @@ class Minimal_Video(minimal.Minimal):
         if self.capture_enabled:
             t_capture = threading.Thread(target=self.capture_video_loop, daemon=True, name="CaptureThread")
             threads.append(t_capture)
-        t_display = threading.Thread(target=self.display_video_loop, daemon=True, name="DisplayThread")
-        threads.append(t_display)
+        if args.show_video:
+            t_display = threading.Thread(target=self.display_video_loop, daemon=True, name="DisplayThread")
+            threads.append(t_display)
         t_recv = threading.Thread(target=self.receive_video_loop, daemon=True, name="ReceiveThread")
         t_network = threading.Thread(target=self.network_send_loop, daemon=True, name="SendThread")
         threads.extend([t_recv, t_network])
@@ -319,13 +326,6 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
             print(f"Verbose Mode: stats cycle = {self.seconds_per_cycle}s")
         except AttributeError:
             print("Error: No se pudo inicializar minimal.Minimal__verbose. Las estadísticas no funcionarán.")
-        # Inicializadores para acumular datos finales
-        self.total_cpu_usage = 0
-        self.cpu_cycles = 0
-        self.total_sent_bytes = 0
-        self.total_received_bytes = 0
-        self.total_video_sent_bytes = 0
-        self.total_video_received_bytes = 0
         self.video_sent_bytes_count = 0
         self.video_sent_messages_count = 0
         self.video_received_bytes_count = 0
@@ -369,6 +369,7 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
                     frag_idx += 1
                 if self.running:
                     self.frame_id_counter += 1
+                # Imprimimos el número de fragmentos enviados para el frame actual.
                 print(f"DEBUG: Frame #{self.frame_id_counter} sent in {frag_idx} fragments")
             except Exception as e:
                 print(f"Error procesando frame envío: {e}")
@@ -434,28 +435,17 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
         print("=" * 80)
         cycle = 1
         old_time = time.time()
-        self.old_cpu_time = psutil.Process().cpu_times().user
         while self.running:
             now = time.time()
             elapsed = max(now - old_time, 0.001)
-            curr_cpu = psutil.Process().cpu_times().user
-            delta_cpu = curr_cpu - self.old_cpu_time
-            self.CPU_usage = 100 * delta_cpu / elapsed if elapsed > 0 else 0
-            self.old_cpu_time = curr_cpu
-            self.global_CPU_usage = psutil.cpu_percent(interval=None)
-            # Acumulamos los contadores para el promedio final
-            self.total_sent_bytes += self.sent_bytes_count
-            self.total_received_bytes += self.received_bytes_count
-            self.total_video_sent_bytes += self.video_sent_bytes_count
-            self.total_video_received_bytes += self.video_received_bytes_count
-            self.total_cpu_usage += self.CPU_usage
-            self.cpu_cycles += 1
             audio_sent_kbps = int(self.sent_bytes_count * 8 / 1000 / elapsed)
             audio_recv_kbps = int(self.received_bytes_count * 8 / 1000 / elapsed)
             video_sent_kbps = int(self.video_sent_bytes_count * 8 / 1000 / elapsed)
             video_recv_kbps = int(self.video_received_bytes_count * 8 / 1000 / elapsed)
+            cpu_usage = int(self.CPU_usage) if hasattr(self, 'CPU_usage') else 0
+            global_cpu = int(self.global_CPU_usage) if hasattr(self, 'global_CPU_usage') else 0
             print(f"{cycle:8d} {self.sent_messages_count:8d} {self.received_messages_count:8d} {self.video_sent_messages_count:8d} {self.video_received_messages_count:8d} "
-                  f"{audio_sent_kbps:8d} {audio_recv_kbps:8d} {video_sent_kbps:8d} {video_recv_kbps:8d} {int(self.CPU_usage):4d} {int(self.global_CPU_usage):4d}")
+                  f"{audio_sent_kbps:8d} {audio_recv_kbps:8d} {video_sent_kbps:8d} {video_recv_kbps:8d} {cpu_usage:4d} {global_cpu:4d}")
             self.sent_bytes_count = 0
             self.received_bytes_count = 0
             self.sent_messages_count = 0
@@ -468,23 +458,6 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
             old_time = now
             time.sleep(1)
 
-    def print_final_averages(self):
-        if self.cpu_cycles == 0:
-            avg_cpu = 0
-            avg_audio_sent = avg_audio_recv = 0
-            avg_video_sent = avg_video_recv = 0
-        else:
-            avg_cpu = self.total_cpu_usage / self.cpu_cycles
-            avg_audio_sent = (self.total_sent_bytes * 8 / 1000) / self.cpu_cycles
-            avg_audio_recv = (self.total_received_bytes * 8 / 1000) / self.cpu_cycles
-            avg_video_sent = (self.total_video_sent_bytes * 8 / 1000) / self.cpu_cycles
-            avg_video_recv = (self.total_video_received_bytes * 8 / 1000) / self.cpu_cycles
-        print(f"\nCPU usage average = {avg_cpu:.1f} %")
-        print(f"Audio Payload sent average = {avg_audio_sent:.1f} kilo bits per second")
-        print(f"Audio Payload received average = {avg_audio_recv:.1f} kilo bits per second")
-        print(f"Video Payload sent average = {avg_video_sent:.1f} kilo bits per second")
-        print(f"Video Payload received average = {avg_video_recv:.1f} kilo bits per second")
-        
     def run(self):
         if not hasattr(self, 'loop_cycle_feedback'):
             print("Advertencia: El bucle de feedback de estadísticas no está disponible. Ejecutando sin estadísticas.")
@@ -504,10 +477,12 @@ if __name__ == "__main__":
     args = minimal.parser.parse_args()
     if not hasattr(args, 'destination_address') or not args.destination_address:
         args.destination_address = "localhost"
+
     verbose_enabled = (getattr(args, 'show_stats', False) or 
                        getattr(args, 'show_samples', False) or 
                        getattr(args, 'show_spectrum', False))
     verbose_class_exists = hasattr(minimal, 'Minimal__verbose')
+
     if verbose_enabled and verbose_class_exists:
         print("Iniciando en modo Verbose...")
         intercom_app = Minimal_Video__verbose()
@@ -516,6 +491,7 @@ if __name__ == "__main__":
         intercom_app = Minimal_Video()
     else:
         intercom_app = Minimal_Video()
+
     try:
         intercom_app.run()
     except KeyboardInterrupt:

@@ -112,10 +112,11 @@ class Buffering(minimal_video.Minimal_Video):
             t_capture = threading.Thread(target=self.capture_video_loop, daemon=True, name="CaptureThread")
             t_capture.start()
 
-        # Inicia también el hilo de visualización de vídeo
-        if self.capture_enabled:
+        # Inicia también el hilo de visualización de vídeo, solo si se activa --show_video
+        if self.capture_enabled and minimal_video.args.show_video:
             t_display = threading.Thread(target=self.display_video_loop, daemon=True, name="DisplayThread")
             t_display.start()
+
 
         # Luego, abre el stream de audio/asociado al buffering
         with self.stream(self._handler):
@@ -185,10 +186,11 @@ class Buffering__verbose(Buffering, minimal_video.Minimal_Video__verbose):
             t_capture = threading.Thread(target=self.capture_video_loop, daemon=True, name="CaptureThread")
             t_capture.start()
 
-        # Inicia también el hilo de visualización de vídeo
-        if self.capture_enabled:
+        # Inicia también el hilo de visualización de vídeo, solo si se activa --show_video
+        if self.capture_enabled and minimal_video.args.show_video:
             t_display = threading.Thread(target=self.display_video_loop, daemon=True, name="DisplayThread")
             t_display.start()
+
 
 
         with self.stream(self._handler):
