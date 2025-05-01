@@ -109,7 +109,7 @@ class Buffering(minimal_video.Minimal_Video):
 
         # Inicia el hilo de captura de vídeo (si la captura está habilitada)
         if self.capture_enabled:
-            t_capture = threading.Thread(target=self.capture_video_loop, daemon=True, name="CaptureThread")
+            t_capture = threading.Thread(target=self.capture_and_send_video_loop, daemon=True, name="CaptureSendThread")
             t_capture.start()
 
         # Inicia también el hilo de visualización de vídeo, solo si se activa --show_video
@@ -183,7 +183,7 @@ class Buffering__verbose(Buffering, minimal_video.Minimal_Video__verbose):
 
          # Inicia el hilo de captura de vídeo (si la captura está habilitada)
         if self.capture_enabled:
-            t_capture = threading.Thread(target=self.capture_video_loop, daemon=True, name="CaptureThread")
+            t_capture = threading.Thread(target=self.capture_and_send_video_loop, daemon=True, name="CaptureSendThread")
             t_capture.start()
 
         # Inicia también el hilo de visualización de vídeo, solo si se activa --show_video
