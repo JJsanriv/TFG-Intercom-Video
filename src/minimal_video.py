@@ -3,10 +3,10 @@
 """
 Minimal_Video: Extiende de minimal.py para agregar transmisión/visualización de video sin
 compresión/encodificación, usando raw data. Incluye opción verbose (--show_stats, --show_samples y --show_spectrum).
-- En modo local (sin -a IP): Muestra la webcam local, reproduce el audio y transmite video full‐duplex vía UDP.
-- En modo transmisión (-a IP): Envía video local y muestra video remoto así como el audio.
+- Se transmite video full‐duplex vía UDP.
+- El flag --show_video habilita la visualización.
 
-Utiliza un socket UDP (puerto 4445) para transmisión y fragmenta los frames.
+Utiliza un socket UDP para transmisión y fragmenta los frames.
 Header (big-endian): FrameID(I), TotalFrags(H), FragIdx(H), Width(H), Height(H)
 
 Nuevos parámetros:
@@ -14,7 +14,8 @@ Nuevos parámetros:
   --width              : Ancho del video (defecto 320).
   --height             : Alto del video (defecto 180).
   --fps                : Frames por segundo video (defecto 30).
-  --show_video         : Habilita la visualización del video. (desactivado por defecto)
+  --show_video         : Habilita la visualización del video (desactivado por defecto).
+  --video_port         : Puerto para transmitir/recibir video (defecto 4445).
 """
 
 import cv2
@@ -50,20 +51,24 @@ parser.add_argument("-g", "--height", type=int, default=180, help="Alto video (d
 parser.add_argument("-z", "--fps", type=int, default=30, help="Frames por segundo video (defecto 30)")
 parser.add_argument("--show_video", action="store_true", default=False,
                     help="Habilita la visualización del video (desactivado por defecto).")
+parser.add_argument("--video_port", type=int, default=4445,
+                    help="Puerto para transmitir/recibir video (defecto 4445).")
 
 class Minimal_Video(minimal.Minimal):
     def __init__(self):
+        # No diferenciamos entre local y remoto
         minimal.args = args
-        self.is_local_mode = (args.destination_address == "localhost" or args.destination_address == '127.0.0.1')
+        # Eliminamos el uso de self.is_local_mode
         super().__init__()
         self.video_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.video_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
-            self.video_sock.bind(("0.0.0.0", 4445))
+            self.video_sock.bind(("0.0.0.0", args.video_port))
         except OSError as e:
             print(f"Error bind socket video: {e}")
             raise
-        self.video_addr = (args.destination_address, 4445)
+        # Usamos siempre la dirección indicada sin distinguir lo local o remoto
+        self.video_addr = (args.destination_address, args.video_port)
         self.video_sock.setblocking(False)
         self.recv_frames = {}
         self.recv_frames_lock = threading.Lock()
@@ -163,7 +168,7 @@ class Minimal_Video(minimal.Minimal):
                                          total_frags, frag_idx, self.width, self.height)
                     packet = header + payload
                     try:
-                        bytes_sent = self.video_sock.sendto(packet, self.video_addr)
+                        self.video_sock.sendto(packet, self.video_addr)
                     except socket.error:
                         time.sleep(0.001)
                         pass
@@ -174,7 +179,6 @@ class Minimal_Video(minimal.Minimal):
                     frag_idx += 1
                 if self.running:
                     self.frame_id_counter += 1
-                # Imprime el número de fragmentos (paquetes) enviados para este frame.
                 print(f"DEBUG: Frame #{self.frame_id_counter} sent in {frag_idx} fragments")
             except Exception as e:
                 print(f"Error procesando frame envío: {e}")
@@ -254,22 +258,22 @@ class Minimal_Video(minimal.Minimal):
         last_display_time = time.time()
         display_fps_target = 30
         min_display_interval = 1.0 / display_fps_target
-        # Si estamos en modo local, mostrar "Local Webcam", de lo contrario, "Video Recibido"
-        window_title = "Local Webcam" if self.is_local_mode else "Video Recibido"
+        # Usamos un título fijo (como en minimal.py no se discrimina por flujo)
+        window_title = "Video"
         while self.running:
             now = time.time()
             wait_time = min_display_interval - (now - last_display_time)
             time.sleep(wait_time if wait_time > 0.001 else 0.001)
             frame_to_show = None
-            # Si estamos en modo local, usamos la imagen capturada; si estamos en modo red, usamos la imagen recibida.
-            if self.is_local_mode:
+            # Intentamos primero utilizar el frame recibido (si existe)
+            with self.latest_received_frame_lock:
+                if self.latest_received_frame is not None:
+                    frame_to_show = self.latest_received_frame.copy()
+            # Si no hay frame recibido y se tiene captura, se usa el frame local
+            if frame_to_show is None and self.capture_enabled:
                 with self.latest_captured_frame_lock:
                     if self.latest_captured_frame is not None:
                         frame_to_show = self.latest_captured_frame.copy()
-            else:
-                with self.latest_received_frame_lock:
-                    if self.latest_received_frame is not None:
-                        frame_to_show = self.latest_received_frame.copy()
             if frame_to_show is not None:
                 try:
                     cv2.imshow(window_title, frame_to_show)
@@ -288,8 +292,7 @@ class Minimal_Video(minimal.Minimal):
             pass
 
     def run(self):
-        mode = "LOCAL" if self.is_local_mode else "RED"
-        print(f"Iniciando en modo {mode}...")
+        print("Iniciando video (sin diferenciación entre local o red)...")
         threads = []
         if self.capture_enabled:
             t_capture = threading.Thread(target=self.capture_video_loop, daemon=True, name="CaptureThread")
@@ -356,7 +359,7 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
                                          total_frags, frag_idx, self.width, self.height)
                     packet = header + payload
                     try:
-                        bytes_sent = self.video_sock.sendto(packet, self.video_addr)
+                        self.video_sock.sendto(packet, self.video_addr)
                         self.video_sent_bytes_count += len(packet)
                         self.video_sent_messages_count += 1
                     except socket.error:
@@ -369,7 +372,6 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
                     frag_idx += 1
                 if self.running:
                     self.frame_id_counter += 1
-                # Imprimimos el número de fragmentos enviados para el frame actual.
                 print(f"DEBUG: Frame #{self.frame_id_counter} sent in {frag_idx} fragments")
             except Exception as e:
                 print(f"Error procesando frame envío: {e}")
