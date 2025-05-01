@@ -246,13 +246,39 @@ class Minimal_Video(minimal.Minimal):
             return
         with self.recv_frames_lock:
             now = time.time()
-            timeout = 1.5
-            remove_ids = [fid for fid, data in self.recv_frames.items() if now - data.get("timestamp", now) > timeout]
+            timeout = 1.5  # tiempo en segundos para considerar un frame incompleto como expirado
+            remove_ids = []
+            for fid, data in self.recv_frames.items():
+                if now - data.get("timestamp", now) > timeout:
+                    fragments = data["fragments"]
+                    total = data["total"]
+                    # El tamaño esperado del frame en bytes
+                    expected_size = data["width"] * data["height"] * 3
+                    # Rellenamos cada fragmento faltante con ceros
+                    for i in range(total):
+                        if fragments[i] is None:
+                            if i < total - 1:
+                                frag_len = self.effective_video_payload_size
+                            else:
+                                frag_len = expected_size - self.effective_video_payload_size * (total - 1)
+                            fragments[i] = bytes(frag_len)  # cadena de ceros
+                    # Reconstruimos el frame completo
+                    frame_data = b"".join(fragments)
+                    if len(frame_data) == expected_size:
+                        try:
+                            frame = np.frombuffer(frame_data, dtype=np.uint8)
+                            frame = frame.reshape((data["height"], data["width"], 3))
+                            with self.latest_received_frame_lock:
+                                self.latest_received_frame = frame
+                        except Exception as e:
+                            print(f"Error procesando frame en clean_old_frames: {e}")
+                    remove_ids.append(fid)
             for fid in remove_ids:
                 try:
                     del self.recv_frames[fid]
                 except KeyError:
                     pass
+
 
     def display_video_loop(self):
         last_display_time = time.time()
