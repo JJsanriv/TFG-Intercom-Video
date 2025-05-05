@@ -76,6 +76,9 @@ class Minimal_Video(minimal.Minimal):
       # Configuración del socket de vídeo
       self.video_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
       self.video_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+      # Aumentamos el buffer para mejorar rendimiento
+      self.video_sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 8388608)
+      self.video_sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 8388608)
       try:
           self.video_sock.bind(("0.0.0.0", args.video_port))
       except OSError as e:
@@ -113,6 +116,10 @@ class Minimal_Video(minimal.Minimal):
       self.latest_captured_frame = None
       self.latest_captured_frame_lock = threading.Lock()
       self.frame_id_counter = 0  # Para numerar los frames enviados
+      
+      # Variables para optimización
+      self.next_cleanup_time = time.time() + 1.0
+      self.last_show_time = 0
 
 
       if args.show_video:
@@ -126,6 +133,8 @@ class Minimal_Video(minimal.Minimal):
                   self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
               if args.height > 0:
                   self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.height)
+              # Configuración adicional para mejorar el rendimiento
+              self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)  # Tamaño mínimo de buffer
               # Leer dimensiones reales
               self.width  = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
               self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -145,217 +154,251 @@ class Minimal_Video(minimal.Minimal):
       else:
           print("Flag --show_video no detectado. La cámara no se inicializará; solo se habilitará la recepción de vídeo.")
 
-
-
-
       self.running = True
 
-
- def capture_and_send_video_loop(self):
-     """
-     Captura el frame, lo fragmenta y envía cada fragmento inmediatamente.
-     Se hace de forma directa sin usar colas.
-     """
-     if not self.capture_enabled:
-         return
-     period = 1.0 / max(1, self.fps)
-     next_capture_time = time.perf_counter()
-     target_dim = (self.width, self.height)
-     while self.running:
-         capture_start_time = time.perf_counter()
-         sleep_time = next_capture_time - capture_start_time
-         time.sleep(sleep_time if sleep_time > 0.001 else 0.001)
-         ret, frame = self.cap.read()
-         if not ret:
-             next_capture_time = time.perf_counter() + period
-             continue
-         next_capture_time += period
-         if (frame.shape[1], frame.shape[0]) != target_dim:
-             try:
-                 frame = cv2.resize(frame, target_dim, interpolation=cv2.INTER_LINEAR)
-             except cv2.error:
-                 continue
-         with self.latest_captured_frame_lock:
-             self.latest_captured_frame = frame.copy()
-         # Fragmentación y envío inmediato
-         data = frame.tobytes()
-         total_len = len(data)
-         if total_len == 0:
-             continue
-         total_frags = math.ceil(total_len / self.effective_video_payload_size)
-         if total_frags == 0:
-             continue
-         frag_idx = 0
-         for start in range(0, total_len, self.effective_video_payload_size):
-             if not self.running:
-                 break
-             end = min(start + self.effective_video_payload_size, total_len)
-             payload = data[start:end]
-             header = struct.pack(self._header_format, self.frame_id_counter,
-                                  total_frags, frag_idx, self.width, self.height)
-             packet = header + payload
-             try:
-                 self.video_sock.sendto(packet, self.video_addr)
-             except socket.error:
-                 time.sleep(0.001)
-                 pass
-             except Exception as e:
-                 print(f"Error send frag {frag_idx}: {e}")
-                 pass
-             # Se insertó un retardo mínimo para evitar saturar el socket
-             time.sleep(0.0001)
-             frag_idx += 1
-         if self.running:
-             self.frame_id_counter += 1
-         time.sleep(0.001)
-
-
  def receive_video(self):
+     # Intentamos recibir múltiples paquetes en un ciclo para mejorar la eficiencia
+     packets_processed = 0
+     max_packets_per_cycle = 20  # Limitamos para no bloquear demasiado tiempo
+     
      try:
-         rlist, _, _ = select.select([self.video_sock], [], [], 0.005)
+         rlist, _, _ = select.select([self.video_sock], [], [], 0.001)  # Reducimos el timeout
          if not rlist:
              return
-         packet, addr = self.video_sock.recvfrom(getattr(self, 'MAX_PAYLOAD_BYTES', 32768))
-         if len(packet) < self.header_size:
-             return
-         header = packet[:self.header_size]
-         payload = packet[self.header_size:]
-         try:
-             frame_id, total_frags, frag_idx, remote_width, remote_height = struct.unpack(self._header_format, header)
-         except struct.error:
-             return
-         with self.recv_frames_lock:
-             if frame_id not in self.recv_frames:
-                 if total_frags <= 0 or total_frags > 5000:
-                     print(f"Advertencia: total_frags inválido ({total_frags}) de {addr}")
-                     return
-                 self.recv_frames[frame_id] = {"fragments": [None] * total_frags,
-                                                "received_count": 0,
-                                                "total": total_frags,
-                                                "timestamp": time.time(),
-                                                "width": remote_width,
-                                                "height": remote_height}
-             entry = self.recv_frames.get(frame_id)
-             if not entry or entry["total"] != total_frags or frag_idx >= entry["total"] or entry["fragments"][frag_idx] is not None:
-                 return
-             entry["fragments"][frag_idx] = payload
-             entry["received_count"] += 1
-             if entry["received_count"] == entry["total"]:
-                 if None not in entry["fragments"]:
-                     frame_data = b"".join(entry["fragments"])
-                     expected_size = entry["width"] * entry["height"] * 3
-                     if len(frame_data) == expected_size:
-                         try:
-                             frame = np.frombuffer(frame_data, dtype=np.uint8)
-                             frame = frame.reshape((entry["height"], entry["width"], 3))
-                             with self.latest_received_frame_lock:
-                                 self.latest_received_frame = frame
-                         except Exception as e:
-                             print(f"Error procesando frame completo: {e}")
-                 del self.recv_frames[frame_id]
-     except socket.error:
+         
+         while packets_processed < max_packets_per_cycle:
+             try:
+                 packet, addr = self.video_sock.recvfrom(getattr(self, 'MAX_PAYLOAD_BYTES', 32768))
+                 packets_processed += 1
+                 
+                 if len(packet) < self.header_size:
+                     continue
+                 
+                 header = packet[:self.header_size]
+                 payload = packet[self.header_size:]
+                 
+                 try:
+                     frame_id, total_frags, frag_idx, remote_width, remote_height = struct.unpack(self._header_format, header)
+                 except struct.error:
+                     continue
+                 
+                 with self.recv_frames_lock:
+                     if frame_id not in self.recv_frames:
+                         if total_frags <= 0 or total_frags > 5000:
+                             continue
+                         self.recv_frames[frame_id] = {"fragments": [None] * total_frags,
+                                                       "received_count": 0,
+                                                       "total": total_frags,
+                                                       "timestamp": time.time(),
+                                                       "width": remote_width,
+                                                       "height": remote_height}
+                     
+                     entry = self.recv_frames.get(frame_id)
+                     if not entry or entry["total"] != total_frags or frag_idx >= entry["total"] or entry["fragments"][frag_idx] is not None:
+                         continue
+                     
+                     entry["fragments"][frag_idx] = payload
+                     entry["received_count"] += 1
+                     
+                     if entry["received_count"] == entry["total"]:
+                         if None not in entry["fragments"]:
+                             frame_data = b"".join(entry["fragments"])
+                             expected_size = entry["width"] * entry["height"] * 3
+                             if len(frame_data) == expected_size:
+                                 try:
+                                     frame = np.frombuffer(frame_data, dtype=np.uint8)
+                                     frame = frame.reshape((entry["height"], entry["width"], 3))
+                                     # Evitamos la copia si no es necesaria
+                                     with self.latest_received_frame_lock:
+                                         self.latest_received_frame = frame
+                                 except Exception:
+                                     pass
+                         del self.recv_frames[frame_id]
+                 
+                 # Actualizar contadores en modo verbose
+                 if hasattr(self, 'video_received_bytes_count'):
+                     self.video_received_bytes_count += len(packet)
+                     self.video_received_messages_count += 1
+                     
+             except socket.error:
+                 # Socket vacío, salimos del bucle
+                 break
+             except Exception:
+                 break
+     except:
          pass
-     except Exception as e:
-         print(f"Error inesperado en receive_video: {e}")
-
- def receive_video_loop(self):
-     while self.running:
-         self.receive_video()
-         time.sleep(0.001)
-         if time.time() % 1.0 < 0.02:
-             self.clean_old_frames()
 
  def clean_old_frames(self):
      if not self.recv_frames:
          return
      with self.recv_frames_lock:
          now = time.time()
-         timeout = 1.5  # tiempo en segundos para considerar un frame incompleto como expirado
+         timeout = 0.5  # Reducimos el timeout para frames incompletos
          remove_ids = []
          for fid, data in self.recv_frames.items():
              if now - data.get("timestamp", now) > timeout:
                  fragments = data["fragments"]
                  total = data["total"]
-                 # El tamaño esperado del frame en bytes
                  expected_size = data["width"] * data["height"] * 3
-                 # Rellenamos cada fragmento faltante con ceros
+                 
+                 # Procesamiento más eficiente de fragmentos faltantes
+                 has_missing = False
                  for i in range(total):
                      if fragments[i] is None:
+                         has_missing = True
                          if i < total - 1:
-                             frag_len = self.effective_video_payload_size
+                             fragments[i] = bytes(self.effective_video_payload_size)  # cadena de ceros
                          else:
-                             frag_len = expected_size - self.effective_video_payload_size * (total - 1)
-                         fragments[i] = bytes(frag_len)  # cadena de ceros
-                 # Reconstruimos el frame completo
-                 frame_data = b"".join(fragments)
-                 if len(frame_data) == expected_size:
-                     try:
-                         frame = np.frombuffer(frame_data, dtype=np.uint8)
-                         frame = frame.reshape((data["height"], data["width"], 3))
-                         with self.latest_received_frame_lock:
-                             self.latest_received_frame = frame
-                     except Exception as e:
-                         print(f"Error procesando frame en clean_old_frames: {e}")
+                             last_frag_size = expected_size - self.effective_video_payload_size * (total - 1)
+                             fragments[i] = bytes(last_frag_size)  # cadena de ceros
+                 
+                 # Solo reconstruimos si hay fragmentos faltantes
+                 if has_missing:
+                     frame_data = b"".join(fragments)
+                     if len(frame_data) == expected_size:
+                         try:
+                             frame = np.frombuffer(frame_data, dtype=np.uint8)
+                             frame = frame.reshape((data["height"], data["width"], 3))
+                             with self.latest_received_frame_lock:
+                                 self.latest_received_frame = frame
+                         except:
+                             pass
                  remove_ids.append(fid)
+                 
+         # Eliminar frames procesados
          for fid in remove_ids:
              try:
                  del self.recv_frames[fid]
              except KeyError:
                  pass
 
-
- def display_video_loop(self):
-     last_display_time = time.time()
-     display_fps_target = 30
-     min_display_interval = 1.0 / display_fps_target
+ def video_loop(self):
+     """
+     Combina captura, envío, recepción y visualización de video en un solo hilo.
+     Sigue el patrón: capturar -> fragmentar -> enviar -> recibir -> componer -> mostrar
+     """
+     period = 1.0 / max(1, self.fps) if self.capture_enabled else 0.033
+     next_time = time.perf_counter()
      window_title = "Video"
+     show_interval = 1.0 / 30.0  # Limitar mostrar a 30 FPS máximo
+     
+     # Prebuildear estructuras de datos para reducir tiempo de procesamiento
+     _send_buffer = bytearray(self.max_payload_possible + self.header_size)
+     _framing_data_stored = {}
+     
      while self.running:
+         current_time = time.perf_counter()
+         
+         # Procesar recepción con mayor prioridad y frecuencia
+         self.receive_video()
+         
+         # Controlar la frecuencia de captura
+         if current_time >= next_time:
+             # 1. Capturar frame
+             frame_to_send = None
+             if self.capture_enabled and self.cap:
+                 ret, frame = self.cap.read()
+                 if ret:
+                     if (frame.shape[1], frame.shape[0]) != (self.width, self.height):
+                         try:
+                             frame = cv2.resize(frame, (self.width, self.height), 
+                                              interpolation=cv2.INTER_NEAREST)  # INTER_NEAREST es más rápido
+                         except cv2.error:
+                             pass
+                     else:
+                         # No es necesario redimensionar, usamos el frame directamente
+                         frame_to_send = frame
+                         # Almacenamos sin copiar para ahorrar memoria
+                         self.latest_captured_frame = frame
+             
+             # 2. Fragmentar y enviar
+             if frame_to_send is not None:
+                 data = frame_to_send.tobytes()  # Convertimos a bytes solo una vez
+                 total_len = len(data)
+                 if total_len > 0:
+                     # Calculamos información de fragmentación una vez
+                     total_frags = math.ceil(total_len / self.effective_video_payload_size)
+                     if total_frags > 0:
+                         # Preparamos el header base (solo cambia frag_idx)
+                         base_header = struct.pack("!IHH", 
+                                                  self.frame_id_counter,
+                                                  total_frags, 
+                                                  0)  # frag_idx se actualizará
+                         dim_header = struct.pack("!HH", self.width, self.height)
+                         
+                         # Envío en bloque con menos interrupciones
+                         for frag_idx in range(total_frags):
+                             start = frag_idx * self.effective_video_payload_size
+                             end = min(start + self.effective_video_payload_size, total_len)
+                             payload = data[start:end]
+                             
+                             # Construimos el header para este fragmento
+                             header = base_header[:6] + struct.pack("!H", frag_idx) + dim_header
+                             
+                             # Construimos el paquete completo
+                             packet = header + payload
+                             
+                             try:
+                                 # Enviar sin copias adicionales
+                                 self.video_sock.sendto(packet, self.video_addr)
+                                 # Actualizamos contadores si estamos en modo verbose
+                                 if hasattr(self, 'video_sent_bytes_count'):
+                                     self.video_sent_bytes_count += len(packet)
+                                     self.video_sent_messages_count += 1
+                             except:
+                                 pass
+                         
+                         self.frame_id_counter += 1
+             
+             # Actualizamos el tiempo para la siguiente captura
+             next_time = current_time + period
+         
+         # 3. Procesamiento periódico de frames antiguos
          now = time.time()
-         wait_time = min_display_interval - (now - last_display_time)
-         time.sleep(wait_time if wait_time > 0.001 else 0.001)
-         frame_to_show = None
-         # Se intenta primero mostrar el frame recibido
-         with self.latest_received_frame_lock:
-             if self.latest_received_frame is not None:
-                 frame_to_show = self.latest_received_frame.copy()
-         # Si no hay frame recibido, se usa el frame capturado
-         if frame_to_show is None and self.capture_enabled:
-             with self.latest_captured_frame_lock:
-                 if self.latest_captured_frame is not None:
-                     frame_to_show = self.latest_captured_frame.copy()
-         if frame_to_show is not None:
-             try:
-                 cv2.imshow(window_title, frame_to_show)
-                 last_display_time = time.time()
-             except cv2.error:
-                 pass
-         key = cv2.waitKey(1)
-         if key & 0xFF == ord('q'):
-             print("Tecla 'q' presionada, deteniendo...")
-             self.running = False
-             break
-
-     try:
-         cv2.destroyWindow(window_title)
-     except cv2.error:
-         pass
-
+         if now >= self.next_cleanup_time:
+             self.clean_old_frames()
+             self.next_cleanup_time = now + 0.5  # Cada 0.5 segundos es suficiente
+         
+         # 4. Mostrar frame (limitado por frecuencia para no sobrecargar)
+         if args.show_video and now - self.last_show_time >= show_interval:
+             self.last_show_time = now
+             frame_to_display = None
+             
+             # Primero intentamos mostrar el frame recibido
+             with self.latest_received_frame_lock:
+                 if self.latest_received_frame is not None:
+                     frame_to_display = self.latest_received_frame  # Usamos sin copiar
+             
+             # Si no hay frame recibido, usamos el frame capturado
+             if frame_to_display is None and self.capture_enabled:
+                 with self.latest_captured_frame_lock:
+                     if self.latest_captured_frame is not None:
+                         frame_to_display = self.latest_captured_frame  # Usamos sin copiar
+             
+             if frame_to_display is not None:
+                 try:
+                     cv2.imshow(window_title, frame_to_display)
+                 except:
+                     pass
+             
+             key = cv2.waitKey(1)
+             if key & 0xFF == ord('q'):
+                 print("Tecla 'q' presionada, deteniendo...")
+                 self.running = False
+         
+         # 5. Controlamos el uso de CPU para no saturar
+         sleep_time = 0.001
+         time.sleep(sleep_time)
 
  def run(self):
-     print("Iniciando video sin cola (envío directo)...")
-     threads = []
-     if self.capture_enabled:
-         t_capture = threading.Thread(target=self.capture_and_send_video_loop, daemon=True, name="CaptureAndSendThread")
-         threads.append(t_capture)
-     if args.show_video:
-         t_display = threading.Thread(target=self.display_video_loop, daemon=True, name="DisplayThread")
-         threads.append(t_display)
-     t_recv = threading.Thread(target=self.receive_video_loop, daemon=True, name="ReceiveThread")
-     threads.append(t_recv)
-     for t in threads:
-         t.start()
+     print("Iniciando video con bucle unificado...")
+     
+     # Solo necesitamos un hilo para todas las operaciones de video
+     t_unified = threading.Thread(target=self.video_loop, daemon=True, name="UnifiedVideoThread")
+     t_unified.start()
+     
      try:
-         super().run()
+         super().run() 
      except KeyboardInterrupt:
          print("Interrupción por teclado detectada.")
      finally:
@@ -367,9 +410,6 @@ class Minimal_Video(minimal.Minimal):
          if self.video_sock:
              self.video_sock.close()
          print("Aplicación de video detenida.")
-
-
-
 
 
 class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
@@ -386,119 +426,8 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
      self.video_received_bytes_count = 0
      self.video_received_messages_count = 0
 
- # Se sobreescribe el método de envío para incorporar estadísticas
- def capture_and_send_video_loop(self):
-     if not self.capture_enabled:
-         return
-     period = 1.0 / max(1, self.fps)
-     next_capture_time = time.perf_counter()
-     target_dim = (self.width, self.height)
-     while self.running:
-         capture_start_time = time.time()
-         sleep_time = next_capture_time - capture_start_time
-         time.sleep(sleep_time if sleep_time > 0.001 else 0.001)
-         ret, frame = self.cap.read()
-         if not ret:
-             next_capture_time = time.perf_counter() + period
-             continue
-         next_capture_time += period
-         if (frame.shape[1], frame.shape[0]) != target_dim:
-             try:
-                 frame = cv2.resize(frame, target_dim, interpolation=cv2.INTER_LINEAR)
-             except cv2.error:
-                 continue
-         with self.latest_captured_frame_lock:
-             self.latest_captured_frame = frame.copy()
-         data = frame.tobytes()
-         total_len = len(data)
-         if total_len == 0:
-             continue
-         total_frags = math.ceil(total_len / self.effective_video_payload_size)
-         if total_frags == 0:
-             continue
-         frag_idx = 0
-         for start in range(0, total_len, self.effective_video_payload_size):
-             if not self.running:
-                 break
-             end = min(start + self.effective_video_payload_size, total_len)
-             payload = data[start:end]
-             header = struct.pack(self._header_format, self.frame_id_counter,
-                                  total_frags, frag_idx, self.width, self.height)
-             packet = header + payload
-             try:
-                 self.video_sock.sendto(packet, self.video_addr)
-                 self.video_sent_bytes_count += len(packet)
-                 self.video_sent_messages_count += 1
-             except socket.error:
-                 time.sleep(0.001)
-                 pass
-             except Exception as e:
-                 print(f"Error send frag {frag_idx}: {e}")
-                 pass
-             time.sleep(0.0001)
-             frag_idx += 1
-         if self.running:
-             self.frame_id_counter += 1
-         # Aquí se elimina el mensaje "DEBUG: Frame…"
-         time.sleep(0.001)
-
-
- # Se sobreescribe también el método de recepción para actualizar contadores
- def receive_video(self):
-     try:
-         rlist, _, _ = select.select([self.video_sock], [], [], 0.005)
-         if not rlist:
-             return
-         packet, addr = self.video_sock.recvfrom(getattr(self, 'MAX_PAYLOAD_BYTES', 32768))
-         self.video_received_bytes_count += len(packet)
-         self.video_received_messages_count += 1
-         if len(packet) < self.header_size:
-             return
-         header = packet[:self.header_size]
-         payload = packet[self.header_size:]
-         try:
-             frame_id, total_frags, frag_idx, remote_width, remote_height = struct.unpack(self._header_format, header)
-         except struct.error:
-             return
-         with self.recv_frames_lock:
-             if frame_id not in self.recv_frames:
-                 if total_frags <= 0 or total_frags > 5000:
-                     print(f"Advertencia: total_frags inválido ({total_frags}) de {addr}")
-                     return
-                 self.recv_frames[frame_id] = {"fragments": [None] * total_frags,
-                                                "received_count": 0,
-                                                "total": total_frags,
-                                                "timestamp": time.time(),
-                                                "width": remote_width,
-                                                "height": remote_height}
-             entry = self.recv_frames.get(frame_id)
-             if not entry or entry["total"] != total_frags or frag_idx >= entry["total"] or entry["fragments"][frag_idx] is not None:
-                 return
-             entry["fragments"][frag_idx] = payload
-             entry["received_count"] += 1
-             if entry["received_count"] == entry["total"]:
-                 if None not in entry["fragments"]:
-                     frame_data = b"".join(entry["fragments"])
-                     expected_size = entry["width"] * entry["height"] * 3
-                     if len(frame_data) == expected_size:
-                         try:
-                             frame = np.frombuffer(frame_data, dtype=np.uint8)
-                             frame = frame.reshape((entry["height"], entry["width"], 3))
-                             with self.latest_received_frame_lock:
-                                 self.latest_received_frame = frame
-                         except Exception as e:
-                             print(f"Error procesando frame completo: {e}")
-                 del self.recv_frames[frame_id]
-     except socket.error:
-         pass
-     except Exception as e:
-         print(f"Error inesperado en receive_video: {e}")
-
-
  def moving_average(self, average, new_sample, number_of_samples):
      return average + (new_sample - average) / number_of_samples
-
-
 
  def loop_cycle_feedback(self):
      header1 = f"{'':8s} {'audio':>16s} {'video':>16s} {'audio':>16s} {'video':>16s} {'Global':>8s}"
@@ -552,7 +481,6 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
          self.old_time = now
          self.old_CPU_time = psutil.Process().cpu_times()[0]
          time.sleep(1)
-
 
  def print_final_averages(self):
      print("\n" * 4)
@@ -609,4 +537,3 @@ if __name__ == "__main__":
          time.sleep(0.2)
          intercom_app.print_final_averages()
      print("Programa terminado.")
-

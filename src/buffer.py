@@ -107,19 +107,11 @@ class Buffering(minimal_video.Minimal_Video):
         logging.info("Press CTRL+c to quit")
         self.played_chunk_number = 0
 
-        # Inicia el hilo de captura de vídeo (si la captura está habilitada)
-        if self.capture_enabled:
-            t_capture = threading.Thread(target=self.capture_and_send_video_loop, daemon=True, name="CaptureSendThread")
-            t_capture.start()
-        # Inicia el hilo de recepción de vídeo
-            t_receive = threading.Thread(target=self.receive_video_loop, daemon=True, name="ReceiveVideoThread")
-            t_receive.start()
-
         # Inicia también el hilo de visualización de vídeo, solo si se activa --show_video
-        if self.capture_enabled and minimal_video.args.show_video:
-            t_display = threading.Thread(target=self.display_video_loop, daemon=True, name="DisplayThread")
-            t_display.start()
-
+        # Reutiliza directamente video_loop heredado de minimal_video.Minimal_Video
+        if minimal_video.args.show_video:
+            t_video = threading.Thread(target=self.video_loop, daemon=True, name="DisplayThread")
+            t_video.start()
 
         # Luego, abre el stream de audio/asociado al buffering
         with self.stream(self._handler):
@@ -184,21 +176,12 @@ class Buffering__verbose(Buffering, minimal_video.Minimal_Video__verbose):
         super().print_header()
         self.played_chunk_number = 0
 
-         # Inicia el hilo de captura de vídeo (si la captura está habilitada)
-        if self.capture_enabled:
-            t_capture = threading.Thread(target=self.capture_and_send_video_loop, daemon=True, name="CaptureSendThread")
-            t_capture.start()
-
-        # Inicia el hilo de recepción de vídeo
-            t_receive = threading.Thread(target=self.receive_video_loop, daemon=True, name="ReceiveVideoThread")
-            t_receive.start()
-            
         # Inicia también el hilo de visualización de vídeo, solo si se activa --show_video
-        if self.capture_enabled and minimal_video.args.show_video:
-            t_display = threading.Thread(target=self.display_video_loop, daemon=True, name="DisplayThread")
-            t_display.start()
-
-
+        # Reutiliza directamente el método heredado video_loop, que ya incluye
+        # la versión instrumentada gracias a la herencia múltiple
+        if minimal_video.args.show_video:
+            t_video = threading.Thread(target=self.video_loop, daemon=True, name="DisplayThread")
+            t_video.start()
 
         with self.stream(self._handler):
             cycle_feedback_thread.start()
