@@ -4,7 +4,8 @@
 Minimal_Video: Extiende de minimal.py para agregar transmisión/visualización de video sin
 compresión/encodificación, usando raw data. Incluye opción verbose (--show_stats, --show_samples y --show_spectrum).
 - Se transmite video full‐duplex vía UDP sin usar colas, es decir, se envía el frame directamente.
-- El flag --show_video habilita la visualización.
+- El flag --show_video habilita la visualización y la transmisión de video.
+- Sin --show_video, se comporta exactamente como minimal.py (solo audio).
 
 Utiliza un socket UDP para transmisión y fragmenta los frames.
 Header (big-endian): FragIdx(H) - Solo se transmite la posición del fragmento
@@ -14,7 +15,7 @@ Nuevos parámetros:
 --width              : Ancho del video (defecto 320).
 --height             : Alto del video (defecto 180).
 --fps                : Frames por segundo video (defecto 30).
---show_video         : Habilita la visualización del video (desactivado por defecto).
+--show_video         : Habilita la visualización y transmisión del video (desactivado por defecto).
 --video_port         : Puerto para transmitir/recibir video (defecto 4445).
 """
 
@@ -54,7 +55,7 @@ parser.add_argument("-w", "--width", type=int, default=320, help="Ancho video (d
 parser.add_argument("-g", "--height", type=int, default=180, help="Alto video (defecto 180)")
 parser.add_argument("-z", "--fps", type=int, default=30, help="Frames por segundo video (defecto 30)")
 parser.add_argument("--show_video", action="store_true", default=False,
-                    help="Habilita la visualización del video (desactivado por defecto).")
+                    help="Habilita la visualización y transmisión del video (desactivado por defecto).")
 parser.add_argument("--video_port", type=int, default=4445,
                     help="Puerto para transmitir/recibir video (defecto 4445).")
 
@@ -72,25 +73,26 @@ class Minimal_Video(minimal.Minimal):
 
         # Llama al constructor de la clase base
         super().__init__()
-
+        
+        # Si no se activa el video, terminamos la inicialización aquí
+        if not args.show_video:
+            return
+            
         # Configuración del socket de vídeo
         self.video_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.video_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         # Aumentamos el buffer para mejorar rendimiento
         self.video_sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 8388608)
         self.video_sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 8388608)
+        # Configurar socket con timeout en lugar de no bloqueante
+        self.video_sock.settimeout(0.01)  # 10 ms de timeout
         try:
             self.video_sock.bind(("0.0.0.0", args.video_port))
         except OSError as e:
             print(f"Error bind socket video: {e}")
             raise
         self.video_addr = (args.destination_address, args.video_port)
-        self.video_sock.setblocking(False)
 
-        # Estructuras necesarias para recepción y reconstrucción de frames de vídeo
-        self.latest_received_frame = None
-        self.latest_received_frame_lock = threading.Lock()
-      
         # Variables para el nuevo protocolo simplificado
         self.current_frame_fragments = None
         self.fragments_received = 0
@@ -104,105 +106,107 @@ class Minimal_Video(minimal.Minimal):
         if self.effective_video_payload_size != args.video_payload_size:
             print(f"Aviso: --video_payload_size ajustado a {self.effective_video_payload_size} bytes.")
 
-        # Si --show_video NO se pasa, la cámara no se inicializa y la aplicación
-        # se configurará solo para la recepción de vídeo.
+        # Inicialización cámara
         self.cap = None
-        self.capture_enabled = False
         self.width = 0
         self.height = 0
         self.fps = 0
         self.latest_captured_frame = None
-        self.latest_captured_frame_lock = threading.Lock()
       
         # Variables para el protocolo simplificado
         self.expected_frame_size = 0  # Se calculará cuando se inicialice la cámara
         self.total_frags = 0  # Se calculará cuando se inicialice la cámara
-      
-        # Variables para optimización
-        self.next_cleanup_time = time.time() + 1.0
-        self.last_show_time = 0
 
-        if args.show_video:
-            print("Flag --show_video detectado. Intentando inicializar la cámara...")
-            try:
-                self.cap = cv2.VideoCapture(0)
-                if not self.cap.isOpened():
-                    raise IOError("No se pudo abrir la cámara.")
-                # Establecer dimensiones deseadas
-                if args.width > 0:
-                    self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
-                if args.height > 0:
-                    self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.height)
-                # Configuración adicional para mejorar el rendimiento
-                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)  # Tamaño mínimo de buffer
-                # Leer dimensiones reales
-                self.width  = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                self.fps = args.fps  # Usamos el fps indicado (para el bucle de captura)
-              
-                # Cálculos para el nuevo protocolo simplificado
-                self.expected_frame_size = self.width * self.height * 3  # RGB
-                self.total_frags = math.ceil(self.expected_frame_size / self.effective_video_payload_size)
-                self.current_frame_fragments = [None] * self.total_frags
-              
-                print(f"Cámara inicializada: {self.width}x{self.height} @ {self.fps} FPS")
-                print(f"Payload/frag UDP: {self.effective_video_payload_size} bytes")
-                print(f"Frame esperado: {self.expected_frame_size} bytes, {self.total_frags} fragmentos")
-                self.capture_enabled = True
-            except Exception as e:
-                print(f"Error al inicializar la cámara: {e}. Captura y envío deshabilitados.")
-                if self.cap:
-                    self.cap.release()
-                self.cap = None
-                self.capture_enabled = False
-                self.width = 0
-                self.height = 0
-                self.fps = 0
-        else:
-            print("Flag --show_video no detectado. La cámara no se inicializará; solo se habilitará la recepción de vídeo.")
-            # Para la recepción, configuramos los tamaños basados en los argumentos
-            self.width = args.width
-            self.height = args.height
+        print("Flag --show_video detectado. Intentando inicializar la cámara...")
+        try:
+            self.cap = cv2.VideoCapture(0)
+            if not self.cap.isOpened():
+                raise IOError("No se pudo abrir la cámara.")
+            # Establecer dimensiones deseadas
+            if args.width > 0:
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
+            if args.height > 0:
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.height)
+            # Configuración adicional para mejorar el rendimiento
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)  # Tamaño mínimo de buffer
+            # Leer dimensiones reales
+            self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            self.fps = args.fps  # Usamos el fps indicado (para el bucle de captura)
+          
+            # Cálculos para el nuevo protocolo simplificado
             self.expected_frame_size = self.width * self.height * 3  # RGB
             self.total_frags = math.ceil(self.expected_frame_size / self.effective_video_payload_size)
             self.current_frame_fragments = [None] * self.total_frags
+          
+            print(f"Cámara inicializada: {self.width}x{self.height} @ {self.fps} FPS")
+            print(f"Payload/frag UDP: {self.effective_video_payload_size} bytes")
+            print(f"Frame esperado: {self.expected_frame_size} bytes, {self.total_frags} fragmentos")
+            
+            # Precalcular rangos de fragmentos y headers para mejorar rendimiento
+            self.fragment_ranges = []
+            self.fragment_headers = []
+            for frag_idx in range(self.total_frags):
+                start = frag_idx * self.effective_video_payload_size
+                end = min(start + self.effective_video_payload_size, self.expected_frame_size)
+                self.fragment_ranges.append((start, end))
+                self.fragment_headers.append(struct.pack(self._header_format, frag_idx))
+                
+            # Inicializar frames
+            self.local_frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
+            self.remote_frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
+            self.received_remote_frame = False
+            
+        except Exception as e:
+            print(f"Error al inicializar la cámara: {e}. Deshabilitando video.")
+            if self.cap:
+                self.cap.release()
+            self.cap = None
 
         self.running = True
 
     def receive_video(self):
         """
-        Versión simplificada que solo utiliza el índice de fragmento.
+        Versión simplificada que actualiza self.remote_frame y maneja frames incompletos
         """
         packets_processed = 0
         max_packets_per_cycle = 20
-     
+    
         try:
             # Se incrementa un poco el timeout para evitar busy waiting extremo
             rlist, _, _ = select.select([self.video_sock], [], [], 0.005)
             if not rlist:
+                # Si no hay datos para recibir, verificar si tenemos fragmentos incompletos
+                if self.fragments_received > 0:
+                    # Frame incompleto: rellena con ceros si ya hemos recibido frames antes
+                    if self.received_remote_frame:
+                        self.remote_frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
+                    # Reinicia para el próximo frame
+                    self.current_frame_fragments = [None] * self.total_frags
+                    self.fragments_received = 0
                 return
-         
+        
             while packets_processed < max_packets_per_cycle:
                 try:
                     packet, addr = self.video_sock.recvfrom(self.effective_video_payload_size + self.header_size)
                     packets_processed += 1
-                 
+                
                     if len(packet) < self.header_size:
                         continue
-                 
+                
                     header = packet[:self.header_size]
                     payload = packet[self.header_size:]
-                 
+                
                     try:
                         frag_idx, = struct.unpack(self._header_format, header)
                     except struct.error:
                         continue
-                 
+                
                     # Validar índice de fragmento
                     if 0 <= frag_idx < self.total_frags and self.current_frame_fragments[frag_idx] is None:
                         self.current_frame_fragments[frag_idx] = payload
                         self.fragments_received += 1
-                     
+                    
                         # Si recibimos todos los fragmentos, reconstruimos el frame
                         if self.fragments_received == self.total_frags:
                             frame_data = b"".join(self.current_frame_fragments)
@@ -210,106 +214,97 @@ class Minimal_Video(minimal.Minimal):
                                 try:
                                     frame = np.frombuffer(frame_data, dtype=np.uint8)
                                     frame = frame.reshape((self.height, self.width, 3))
-                                    with self.latest_received_frame_lock:
-                                        self.latest_received_frame = frame
+                                    self.remote_frame = frame
+                                    self.received_remote_frame = True
                                 except Exception:
                                     pass
-                         
+                        
                             # Reiniciamos para el próximo frame
                             self.current_frame_fragments = [None] * self.total_frags
                             self.fragments_received = 0
-                 
+                
                     # Actualizar contadores en modo verbose
                     if hasattr(self, 'video_received_bytes_count'):
                         self.video_received_bytes_count += len(packet)
                         self.video_received_messages_count += 1
-                     
+                    
                 except socket.error:
                     # Socket vacío, salimos del bucle
                     break
                 except Exception as e:
                     print(f"Error en recepción: {e}")
                     break
-        except Exception as e:
-            print(f"Excepción en receive_video: {e}")
-
-        def check_incomplete_frame(self):
-            """
-            Si el frame está incompleto, simplemente rellena latest_received_frame con ceros,
-            """
-            if self.fragments_received > 0 and self.fragments_received < self.total_frags:
-                # Frame incompleto: rellena con ceros.
-                blank_frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
-                with self.latest_received_frame_lock:
-                    self.latest_received_frame = blank_frame
+            
+            # Si después de procesar todos los paquetes disponibles hay fragmentos incompletos,
+            # generar un frame negro
+            if self.fragments_received > 0:
+                # Frame incompleto: rellena con ceros si ya hemos recibido frames antes
+                if self.received_remote_frame:
+                    self.remote_frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
                 # Reinicia para el próximo frame
                 self.current_frame_fragments = [None] * self.total_frags
                 self.fragments_received = 0
+                
+        except Exception as e:
+            print(f"Excepción en receive_video: {e}")
 
     def video_loop(self):
-        window_title = "Video"
+        # Una sola ventana, con título condicional según la dirección
+        window_title = "Video remoto" if args.destination_address != "localhost" else "Video local"
         target_period = 1.0 / self.fps if self.fps > 0 else 1.0 / 30.0
 
         while self.running:
             cycle_start = time.monotonic()
 
-            # 1. Procesar recepción de video
+            # 1. Procesar recepción de video (ahora actualiza self.remote_frame)
             self.receive_video()
 
             # 2. Capturar y enviar frame, si corresponde
-            if self.capture_enabled:
-                ret, frame = self.cap.read()
-                if not ret or frame is None:
-                    frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
+            if self.cap is not None:
+                try:
+                    ret, frame = self.cap.read()
+                    if ret:  # Si la captura fue exitosa
+                        self.local_frame = frame  # Actualizamos el frame local
+                        data = frame.tobytes()
 
-                self.latest_captured_frame = frame
-                data = frame.tobytes()
-
-                for frag_idx in range(self.total_frags):
-                    start = frag_idx * self.effective_video_payload_size
-                    end = min(start + self.effective_video_payload_size, len(data))
-                    payload = data[start:end]
-                    header = struct.pack(self._header_format, frag_idx)
-                    packet = header + payload
-                    sent = False
-                    while not sent and self.running:
-                        try:
+                        # Enviamos cada fragmento usando los rangos precalculados
+                        for frag_idx in range(self.total_frags):
+                            start, end = self.fragment_ranges[frag_idx]
+                            payload = data[start:end]
+                            # Usamos el header precalculado
+                            packet = self.fragment_headers[frag_idx] + payload
+                            # Envío directo sin manejo de errores
                             self.video_sock.sendto(packet, self.video_addr)
-                            sent = True
-                        except BlockingIOError:
-                            time.sleep(0.002)
+                except Exception as e:
+                    if self.running:
+                        print(f"Error en captura o envío de video: {e}")
 
-            # 3. Mostrar frame
-            if args.show_video:
-                frame_to_display = None
-                with self.latest_received_frame_lock:
-                    if self.latest_received_frame is not None:
-                        frame_to_display = self.latest_received_frame
-                if frame_to_display is None and self.capture_enabled:
-                    frame_to_display = self.latest_captured_frame
+            # 3. Mostrar el frame apropiado según la dirección
+            try:
+                # Si la dirección no es localhost y hemos recibido frames remotos, mostrar el remoto
+                if args.destination_address != "localhost" and self.received_remote_frame:
+                    cv2.imshow(window_title, self.remote_frame)
+                else:
+                    # De lo contrario, mostrar el local
+                    cv2.imshow(window_title, self.local_frame)
+                
+                cv2.waitKey(1)
+            except Exception as e:
+                print(f"Error al mostrar frame: {e}")
 
-                if frame_to_display is not None:
-                    try:
-                        cv2.imshow(window_title, frame_to_display)
-                    except Exception as e:
-                        print(f"Error al mostrar frame: {e}")
-                key = cv2.waitKey(1)
-                if key & 0xFF == ord('q'):
-                    print("Tecla 'q' presionada, deteniendo...")
-                    self.running = False
-
-            # 4. Procesamiento periódico de frames incompletos
-            if time.monotonic() >= self.next_cleanup_time:
-                self.check_incomplete_frame()
-                self.next_cleanup_time = time.monotonic() + 0.5
-
-            # 5. Sincronización de ciclo
+            # 4. Sincronización de ciclo
             elapsed = time.monotonic() - cycle_start
             to_sleep = max(0, target_period - elapsed)
             if to_sleep > 0:
                 time.sleep(to_sleep)
 
     def run(self):
+        # Si el video no está habilitado, comportarse como minimal.py
+        if not args.show_video or self.cap is None:
+            print("Video desactivado. Ejecutando solo la parte de audio.")
+            super().run()
+            return
+            
         print("Iniciando video con bucle unificado y protocolo simplificado...")
      
         # Solo se utiliza un hilo para todas las operaciones de video
@@ -323,10 +318,10 @@ class Minimal_Video(minimal.Minimal):
         finally:
             print("Deteniendo aplicación de video...")
             self.running = False
-            if self.cap and self.cap.isOpened():
+            if hasattr(self, 'cap') and self.cap and self.cap.isOpened():
                 self.cap.release()
             cv2.destroyAllWindows()
-            if self.video_sock:
+            if hasattr(self, 'video_sock') and self.video_sock:
                 self.video_sock.close()
             print("Aplicación de video detenida.")
 
@@ -334,11 +329,17 @@ class Minimal_Video(minimal.Minimal):
 class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
     def __init__(self):
         super().__init__()
+        
+        # Si el video no está habilitado, no inicializar contadores de video
+        if not args.show_video or not hasattr(self, 'cap') or self.cap is None:
+            return
+            
         try:
             minimal.Minimal__verbose.__init__(self)
             print(f"Verbose Mode: stats cycle = {self.seconds_per_cycle}s")
         except AttributeError:
             print("Error: No se pudo inicializar minimal.Minimal__verbose. Las estadísticas no funcionarán.")
+            
         # Inicializamos contadores para la versión verbose
         self.video_sent_bytes_count = 0
         self.video_sent_messages_count = 0
@@ -349,6 +350,12 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
         return average + (new_sample - average) / number_of_samples
 
     def loop_cycle_feedback(self):
+        # Si el video no está habilitado, usar la versión de la clase padre
+        if not args.show_video or not hasattr(self, 'cap') or self.cap is None:
+            if hasattr(minimal.Minimal__verbose, 'loop_cycle_feedback'):
+                return super(Minimal_Video, self).loop_cycle_feedback()
+            return
+            
         header1 = f"{'':8s} {'audio':>16s} {'video':>16s} {'audio':>16s} {'video':>16s} {'Global':>8s}"
         header2 = f"{'cycle':8s} {'sent':>8s} {'recv':>8s} {'sent':>8s} {'recv':>8s} {'KBPS':>8s} {'KBPS':>8s} {'KBPS':>8s} {'KBPS':>8s} {'%CPU':>4s} {'%CPU':>4s}"
         print(header1)
@@ -400,82 +407,85 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
             time.sleep(1)
 
     def print_final_averages(self):
+        # Si no hay video, usar la versión original
+        if not args.show_video or not hasattr(self, 'cap') or self.cap is None:
+            if hasattr(minimal.Minimal__verbose, 'print_final_averages'):
+                return super(Minimal_Video, self).print_final_averages()
+            return
+            
         print("\n" * 4)
         print(f"CPU usage average = {self.average_CPU_usage:.2f} %")
         print(f"Payload sent average = {self.average_sent_KBPS:.2f} kilo bits per second")
         print(f"Payload received average = {self.average_received_KBPS:.2f} kilo bits per second")
 
     def video_loop(self):
-        window_title = "Video"
+        # Una sola ventana, con título condicional según la dirección
+        window_title = "Video remoto" if args.destination_address != "localhost" else "Video local"
         target_period = 1.0 / self.fps if self.fps > 0 else 1.0 / 30.0
 
         while self.running:
             cycle_start = time.monotonic()
 
-            # 1. Procesar recepción de video
+            # 1. Procesar recepción de video (ahora actualiza self.remote_frame)
             self.receive_video()
 
             # 2. Capturar y enviar frame, si corresponde
-            if self.capture_enabled:
-                ret, frame = self.cap.read()
-                if not ret or frame is None:
-                    frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
+            if self.cap is not None:
+                try:
+                    ret, frame = self.cap.read()
+                    if ret:  # Si la captura fue exitosa
+                        self.local_frame = frame  # Actualizamos el frame local
+                        data = frame.tobytes()
 
-                self.latest_captured_frame = frame
-                data = frame.tobytes()
-
-                for frag_idx in range(self.total_frags):
-                    start = frag_idx * self.effective_video_payload_size
-                    end = min(start + self.effective_video_payload_size, len(data))
-                    payload = data[start:end]
-                    header = struct.pack(self._header_format, frag_idx)
-                    packet = header + payload
-                    sent = False
-                    while not sent and self.running:
-                        try:
+                        # Enviamos cada fragmento usando los rangos precalculados
+                        for frag_idx in range(self.total_frags):
+                            start, end = self.fragment_ranges[frag_idx]
+                            payload = data[start:end]
+                            # Usamos el header precalculado
+                            packet = self.fragment_headers[frag_idx] + payload
+                            # Envío directo sin manejo de errores
                             self.video_sock.sendto(packet, self.video_addr)
-                            # ACTUALIZA CONTADORES VERBOSE
+                            # Actualiza contadores verbose
                             self.video_sent_bytes_count += len(packet)
                             self.video_sent_messages_count += 1
-                            sent = True
-                        except BlockingIOError:
-                            time.sleep(0.002)
+                except Exception as e:
+                    if self.running:
+                        print(f"Error en captura o envío de video: {e}")
 
-            # 3. Mostrar frame
-            if args.show_video:
-                frame_to_display = None
-                with self.latest_received_frame_lock:
-                    if self.latest_received_frame is not None:
-                        frame_to_display = self.latest_received_frame
-                if frame_to_display is None and self.capture_enabled:
-                    frame_to_display = self.latest_captured_frame
+            # 3. Mostrar el frame apropiado según la dirección
+            try:
+                # Si la dirección no es localhost y hemos recibido frames remotos, mostrar el remoto
+                if args.destination_address != "localhost" and self.received_remote_frame:
+                    cv2.imshow(window_title, self.remote_frame)
+                else:
+                    # De lo contrario, mostrar el local
+                    cv2.imshow(window_title, self.local_frame)
+                
+                cv2.waitKey(1)
+            except Exception as e:
+                print(f"Error al mostrar frame: {e}")
 
-                if frame_to_display is not None:
-                    try:
-                        cv2.imshow(window_title, frame_to_display)
-                    except Exception as e:
-                        print(f"Error al mostrar frame: {e}")
-                key = cv2.waitKey(1)
-                if key & 0xFF == ord('q'):
-                    print("Tecla 'q' presionada, deteniendo...")
-                    self.running = False
-
-            # 4. Procesamiento periódico de frames incompletos
-            if time.monotonic() >= self.next_cleanup_time:
-                self.check_incomplete_frame()
-                self.next_cleanup_time = time.monotonic() + 0.5
-
-            # 5. Sincronización de ciclo
+            # 4. Sincronización de ciclo
             elapsed = time.monotonic() - cycle_start
             to_sleep = max(0, target_period - elapsed)
             if to_sleep > 0:
                 time.sleep(to_sleep)
 
     def run(self):
+        # Si no hay video, usar el comportamiento de Minimal__verbose
+        if not args.show_video or not hasattr(self, 'cap') or self.cap is None:
+            print("Video desactivado. Ejecutando solo la parte de audio en modo verbose.")
+            if hasattr(minimal, 'Minimal__verbose'):
+                super(Minimal_Video, self).run()
+            else:
+                super().run()
+            return
+            
         if not hasattr(self, 'loop_cycle_feedback'):
             print("Advertencia: El bucle de feedback de estadísticas no está disponible. Ejecutando sin estadísticas.")
             super().run()
             return
+            
         cycle_feedback_thread = threading.Thread(target=self.loop_cycle_feedback, daemon=True, name="FeedbackThread")
         self.print_header()
         cycle_feedback_thread.start()
@@ -493,7 +503,7 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
             if self.cap and self.cap.isOpened():
                 self.cap.release()
             cv2.destroyAllWindows()
-            if self.video_sock:
+            if hasattr(self, 'video_sock') and self.video_sock:
                 self.video_sock.close()
             print("Aplicación de video detenida.")
 
