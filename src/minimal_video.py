@@ -209,7 +209,21 @@ class Minimal_Video(minimal.Minimal):
     """
 
     def video_loop(self):
+        last_time = time.time()
+        frame_time = 1.0 / self.fps  # Tiempo entre frames en segundos
+        
         while self.running:
+            # Control de FPS
+            current_time = time.time()
+            elapsed = current_time - last_time
+            
+            # Si no ha pasado suficiente tiempo para el siguiente frame, esperamos
+            if elapsed < frame_time:
+                time.sleep(frame_time - elapsed)
+                current_time = time.time()
+            
+            last_time = current_time
+            
             # 1. Capturar frame
             _, frame = self.cap.read()
             data = frame.tobytes()
@@ -429,7 +443,21 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
         """
     
     def video_loop(self):
+        last_time = time.time()
+        frame_time = 1.0 / self.fps  # Tiempo entre frames en segundos
+        
         while self.running:
+            # Control de FPS
+            current_time = time.time()
+            elapsed = current_time - last_time
+            
+            # Si no ha pasado suficiente tiempo para el siguiente frame, esperamos
+            if elapsed < frame_time:
+                time.sleep(frame_time - elapsed)
+                current_time = time.time()
+            
+            last_time = current_time
+            
             # 1. Capturar frame
             _, frame = self.cap.read()
             data = frame.tobytes()
@@ -508,12 +536,12 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
             self.print_header()
             cycle_feedback_thread.start()
             print("Iniciando video con bucle unificado y protocolo simplificado (verbose)...")
-            # Solo la versión verbose usa su propio video_loop
-
+            
             t_unified = threading.Thread(target=self.video_loop, daemon=True, name="UnifiedVideoThread")
             t_unified.start()
             try:
-                super(Minimal_Video, self).run()
+                # Llamamos a run() de Minimal, no de Minimal__verbose para evitar duplicar estadísticas
+                minimal.Minimal.run(self)
             except KeyboardInterrupt:
                 print("Interrupción por teclado detectada.")
             finally:
