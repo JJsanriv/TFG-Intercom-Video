@@ -49,8 +49,8 @@ if not hasattr(minimal, 'parser'):
 parser = minimal.parser
 
 
-parser.add_argument("-v", "--video_payload_size", type=int, default=32000,
-                    help="Tamaño deseado (bytes) payload video/fragmento UDP (defecto 32000).")
+parser.add_argument("-v", "--video_payload_size", type=int, default=1400,
+                    help="Tamaño deseado (bytes) payload video/fragmento UDP (defecto 1400).")
 parser.add_argument("-w", "--width", type=int, default=320, help="Ancho video (defecto 320)")
 parser.add_argument("-g", "--height", type=int, default=180, help="Alto video (defecto 180)")
 parser.add_argument("-z", "--fps", type=int, default=30, help="Frames por segundo video (defecto 30)")
@@ -85,7 +85,7 @@ class Minimal_Video(minimal.Minimal):
         self.video_sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 8388608)
         self.video_sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 8388608)
         
-        self.video_sock.setblocking(False)
+        self.video_sock.setblocking(False) # No bloqueante
         try:
             self.video_sock.bind(("0.0.0.0", args.video_port))
         except OSError as e:
@@ -137,7 +137,7 @@ class Minimal_Video(minimal.Minimal):
             # Cálculos para el nuevo protocolo simplificado
             self.expected_frame_size = self.width * self.height * 3  # RGB
             self.total_frags = math.ceil(self.expected_frame_size / self.effective_video_payload_size)
-            self.current_frame_fragments = [None] * self.total_frags
+            
           
             print(f"Cámara inicializada: {self.width}x{self.height} @ {self.fps} FPS")
             print(f"Payload/frag UDP: {self.effective_video_payload_size} bytes")
@@ -155,6 +155,10 @@ class Minimal_Video(minimal.Minimal):
             # Inicializar frames
             self.remote_frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
             self.received_remote_frame = False
+
+            # Inicializa el buffer del frame a ceros (Precalculamos el tamaño)
+            if not hasattr(self, 'temp_frame_buffer') or self.temp_frame_buffer.shape != (self.height, self.width, 3):
+                self.temp_frame_buffer = np.zeros((self.height, self.width, 3), dtype=np.uint8)
             
         except Exception as e:
             print(f"Error al inicializar la cámara: {e}. Deshabilitando video.")
@@ -166,60 +170,45 @@ class Minimal_Video(minimal.Minimal):
 
     def receive_video(self):
         """
-        Versión optimizada sin try/except innecesarios
+        Recibe todos los fragmentos UDP disponibles en este ciclo SIN BLOQUEAR.
+        Actualiza self.remote_frame con lo recibido, rellenando de negro lo que falte.
         """
-        packets_processed = 0
-        max_packets_per_cycle = 20
-        
-        # Usar select para comprobar si hay datos disponibles para leer
-        rlist, _, _ = select.select([self.video_sock], [], [], 0.01)
+
+        # Inicializa el frame a negro antes de recibir fragmentos nuevos
+        self.temp_frame_buffer.fill(0)
+
+        # Usa select para no bloquear nunca
+        rlist, _, _ = select.select([self.video_sock], [], [], 0)
         if not rlist:
-            # Si no hay datos para leer, simplemente salimos
+            # No hay datos, seguimos
+            self.remote_frame = self.temp_frame_buffer.copy()
             return
-        
-        # Si llegamos aquí, hay datos disponibles para leer
-        while packets_processed < max_packets_per_cycle:
+
+        while True:
             try:
                 packet, addr = self.video_sock.recvfrom(self.effective_video_payload_size + self.header_size)
-            except (BlockingIOError, socket.error):
-                # Manejo de error común para socket: salir del bucle
+            except BlockingIOError:
+                break  # No hay más datos disponibles
+            except Exception as e:
+                print("Error recibiendo paquete UDP de vídeo:", e)
                 break
-                
-            packets_processed += 1
-            
-            if len(packet) < self.header_size:
-                continue
-            
+
+            # Procesa el paquete: extrae el fragmento y lo copia al buffer
             header = packet[:self.header_size]
             payload = packet[self.header_size:]
-            
             try:
                 frag_idx, = struct.unpack(self._header_format, header)
             except struct.error:
                 continue
-            
-            # Validar índice de fragmento
-            if 0 <= frag_idx < self.total_frags and self.current_frame_fragments[frag_idx] is None:
-                self.current_frame_fragments[frag_idx] = payload
-                self.fragments_received += 1
-                
-                # Si recibimos todos los fragmentos, reconstruimos el frame
-                if self.fragments_received == self.total_frags:
-                    frame_data = b"".join(self.current_frame_fragments)
-                    if len(frame_data) == self.expected_frame_size:
-                        frame = np.frombuffer(frame_data, dtype=np.uint8)
-                        frame = frame.reshape((self.height, self.width, 3))
-                        self.remote_frame = frame
-                        self.received_remote_frame = True
-                    
-                    # Reiniciamos para el próximo frame
-                    self.current_frame_fragments = [None] * self.total_frags
-                    self.fragments_received = 0
-            
-            # Actualizar contadores en modo verbose
-            if hasattr(self, 'video_received_bytes_count'):
-                self.video_received_bytes_count += len(packet)
-                self.video_received_messages_count += 1
+
+            if 0 <= frag_idx < self.total_frags:
+                start = frag_idx * self.effective_video_payload_size
+                end = min(start + len(payload), self.expected_frame_size)
+                flat_frame = self.temp_frame_buffer.reshape(-1)
+                flat_frame[start:end] = np.frombuffer(payload, dtype=np.uint8, count=(end-start))
+
+        # Copia el frame temporal para mostrarlo
+        self.remote_frame = self.temp_frame_buffer.copy()
 
     def video_loop(self):
         while self.running:
@@ -363,6 +352,56 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
         print(f"CPU usage average = {self.average_CPU_usage:.2f} %")
         print(f"Payload sent average = {self.average_sent_KBPS:.2f} kilo bits per second")
         print(f"Payload received average = {self.average_received_KBPS:.2f} kilo bits per second")
+
+    def receive_video(self):
+        """
+        Recibe todos los fragmentos UDP disponibles en este ciclo SIN BLOQUEAR.
+        Actualiza self.remote_frame con lo recibido, rellenando de negro lo que falte.
+        Actualiza los contadores verbose si están presentes.
+        """
+        # El socket debe estar en modo no bloqueante
+        self.video_sock.setblocking(False)
+
+        # Inicializa el frame a negro antes de recibir fragmentos nuevos
+        self.temp_frame_buffer.fill(0)
+
+        # Usa select para no bloquear nunca
+        rlist, _, _ = select.select([self.video_sock], [], [], 0)
+        if not rlist:
+            self.remote_frame = self.temp_frame_buffer.copy()
+            return
+
+        while True:
+            try:
+                packet, addr = self.video_sock.recvfrom(self.effective_video_payload_size + self.header_size)
+            except BlockingIOError:
+                break  # No hay más datos disponibles
+            except Exception as e:
+                print("Error recibiendo paquete UDP de vídeo:", e)
+                break
+
+            # Actualiza los contadores si están presentes (modo verbose)
+            if hasattr(self, "video_received_bytes_count"):
+                self.video_received_bytes_count += len(packet)
+            if hasattr(self, "video_received_messages_count"):
+                self.video_received_messages_count += 1
+
+            # Procesa el paquete: extrae el fragmento y lo copia al buffer
+            header = packet[:self.header_size]
+            payload = packet[self.header_size:]
+            try:
+                frag_idx, = struct.unpack(self._header_format, header)
+            except struct.error:
+                continue
+
+            if 0 <= frag_idx < self.total_frags:
+                start = frag_idx * self.effective_video_payload_size
+                end = min(start + len(payload), self.expected_frame_size)
+                flat_frame = self.temp_frame_buffer.reshape(-1)
+                flat_frame[start:end] = np.frombuffer(payload, dtype=np.uint8, count=(end-start))
+
+        # Copia el frame temporal para mostrarlo
+        self.remote_frame = self.temp_frame_buffer.copy()
 
     def video_loop(self):
         while self.running:
