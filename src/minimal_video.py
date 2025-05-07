@@ -11,7 +11,7 @@ Utiliza un socket UDP para transmisión y fragmenta los frames.
 Header (big-endian): FragIdx(H) - Solo se transmite la posición del fragmento
 
 Nuevos parámetros:
---video_payload_size : Tamaño deseado (bytes) payload video/fragmento UDP (defecto 32000).
+--video_payload_size : Tamaño deseado (bytes) payload video/fragmento UDP (defecto 1400).
 --width              : Ancho del video (defecto 320).
 --height             : Alto del video (defecto 180).
 --fps                : Frames por segundo video (defecto 30).
@@ -168,11 +168,8 @@ class Minimal_Video(minimal.Minimal):
 
         self.running = True
 
+    """
     def receive_video(self):
-        """
-        Recibe todos los fragmentos UDP disponibles en este ciclo SIN BLOQUEAR.
-        Actualiza self.remote_frame con lo recibido, rellenando de negro lo que falte.
-        """
 
         # Inicializa el frame a negro antes de recibir fragmentos nuevos
         self.temp_frame_buffer.fill(0)
@@ -209,26 +206,56 @@ class Minimal_Video(minimal.Minimal):
 
         # Copia el frame temporal para mostrarlo
         self.remote_frame = self.temp_frame_buffer.copy()
+    """
 
     def video_loop(self):
         while self.running:
-            # 1. Procesar recepción de video
-            self.receive_video()
-
-            # 2. Capturar y enviar frame (sin verificación innecesaria de ret)
-            _, frame = self.cap.read()  # Descartamos ret ya que siempre es True
+            # 1. Capturar frame
+            _, frame = self.cap.read()
             data = frame.tobytes()
 
-            # Enviamos cada fragmento usando los rangos precalculados
+            # 2. Entrelazar envío y recepción de fragmentos
+            self.temp_frame_buffer.fill(0)
+            
             for frag_idx in range(self.total_frags):
+                # ENVÍO: Enviar un fragmento
                 start, end = self.fragment_ranges[frag_idx]
                 payload = data[start:end]
-                # Usamos el header precalculado
                 packet = self.fragment_headers[frag_idx] + payload
-                # Envío directo
-                self.video_sock.sendto(packet, self.video_addr)
-
-            # 3. Mostrar únicamente el frame recibido por red
+                
+                try:
+                    self.video_sock.sendto(packet, self.video_addr)
+                except BlockingIOError:
+                    # Si el buffer está lleno, esperamos un poco y continuamos
+                    time.sleep(0.001)
+                    continue
+                
+                # RECEPCIÓN: Intentar recibir un fragmento (sin bloquear)
+                try:
+                    rlist, _, _ = select.select([self.video_sock], [], [], 0)
+                    if rlist:
+                        packet, addr = self.video_sock.recvfrom(self.effective_video_payload_size + self.header_size)
+                        
+                        # Procesa el paquete recibido
+                        header = packet[:self.header_size]
+                        payload = packet[self.header_size:]
+                        
+                        try:
+                            recv_frag_idx, = struct.unpack(self._header_format, header)
+                            if 0 <= recv_frag_idx < self.total_frags:
+                                start = recv_frag_idx * self.effective_video_payload_size
+                                end = min(start + len(payload), self.expected_frame_size)
+                                flat_frame = self.temp_frame_buffer.reshape(-1)
+                                flat_frame[start:end] = np.frombuffer(payload, dtype=np.uint8, count=(end-start))
+                        except struct.error:
+                            pass
+                except BlockingIOError:
+                    pass
+                except Exception:
+                    pass
+            
+            # 3. Actualizar y mostrar el frame remoto
+            self.remote_frame = self.temp_frame_buffer.copy()
             cv2.imshow("Video", self.remote_frame)
             cv2.waitKey(1)
 
@@ -353,12 +380,9 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
         print(f"Payload sent average = {self.average_sent_KBPS:.2f} kilo bits per second")
         print(f"Payload received average = {self.average_received_KBPS:.2f} kilo bits per second")
 
+    """
     def receive_video(self):
-        """
-        Recibe todos los fragmentos UDP disponibles en este ciclo SIN BLOQUEAR.
-        Actualiza self.remote_frame con lo recibido, rellenando de negro lo que falte.
-        Actualiza los contadores verbose si están presentes.
-        """
+
         # El socket debe estar en modo no bloqueante
         self.video_sock.setblocking(False)
 
@@ -402,29 +426,64 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
 
         # Copia el frame temporal para mostrarlo
         self.remote_frame = self.temp_frame_buffer.copy()
-
+        """
+    
     def video_loop(self):
         while self.running:
-            # 1. Procesar recepción de video
-            self.receive_video()
-
-            # 2. Capturar y enviar frame (sin verificación innecesaria)
+            # 1. Capturar frame
             _, frame = self.cap.read()
             data = frame.tobytes()
 
-            # Enviamos cada fragmento usando los rangos precalculados
+            # 2. Entrelazar envío y recepción de fragmentos
+            self.temp_frame_buffer.fill(0)
+            
             for frag_idx in range(self.total_frags):
+                # ENVÍO: Enviar un fragmento
                 start, end = self.fragment_ranges[frag_idx]
                 payload = data[start:end]
-                # Usamos el header precalculado
                 packet = self.fragment_headers[frag_idx] + payload
-                # Envío directo
-                self.video_sock.sendto(packet, self.video_addr)
-                # Actualiza contadores verbose
-                self.video_sent_bytes_count += len(packet)
-                self.video_sent_messages_count += 1
-
-            # 3. Mostrar únicamente el frame recibido por red
+                
+                try:
+                    self.video_sock.sendto(packet, self.video_addr)
+                    # Actualiza contadores de envío
+                    self.video_sent_bytes_count += len(packet)
+                    self.video_sent_messages_count += 1
+                except BlockingIOError:
+                    # Si el buffer está lleno, esperamos un poco y continuamos
+                    time.sleep(0.001)
+                    continue
+                
+                # RECEPCIÓN: Intentar recibir un fragmento (sin bloquear)
+                try:
+                    rlist, _, _ = select.select([self.video_sock], [], [], 0)
+                    if rlist:
+                        packet, addr = self.video_sock.recvfrom(self.effective_video_payload_size + self.header_size)
+                        
+                        # Actualiza contadores de recepción
+                        self.video_received_bytes_count += len(packet)
+                        self.video_received_messages_count += 1
+                        
+                        # Procesa el paquete recibido
+                        header = packet[:self.header_size]
+                        payload = packet[self.header_size:]
+                        
+                        try:
+                            recv_frag_idx, = struct.unpack(self._header_format, header)
+                            if 0 <= recv_frag_idx < self.total_frags:
+                                start = recv_frag_idx * self.effective_video_payload_size
+                                end = min(start + len(payload), self.expected_frame_size)
+                                flat_frame = self.temp_frame_buffer.reshape(-1)
+                                flat_frame[start:end] = np.frombuffer(payload, dtype=np.uint8, count=(end-start))
+                        except struct.error:
+                            pass
+                except BlockingIOError:
+                    pass
+                except Exception as e:
+                    # Solo registrar errores en modo verbose si hubiera un flag específico
+                    pass
+            
+            # 3. Actualizar y mostrar el frame remoto
+            self.remote_frame = self.temp_frame_buffer.copy()
             cv2.imshow("Video", self.remote_frame)
             cv2.waitKey(1)
             
