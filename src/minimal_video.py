@@ -129,13 +129,12 @@ class Minimal_Video(minimal.Minimal):
                 self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.height)
             if args.fps > 0:
                 self.cap.set(cv2.CAP_PROP_FPS, args.fps)
-            
             # Configuración adicional para mejorar el rendimiento
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)  # Tamaño mínimo de buffer
             # Leer dimensiones reales
             self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            self.fps = int(self.cap.get(cv2.CAP_PROP_FPS)) 
+            self.fps = int(self.cap.get(cv2.CAP_PROP_FPS))
           
             # Cálculos para el nuevo protocolo simplificado
             self.expected_frame_size = self.width * self.height * 3  # RGB
@@ -163,6 +162,9 @@ class Minimal_Video(minimal.Minimal):
             if not hasattr(self, 'temp_frame_buffer') or self.temp_frame_buffer.shape != (self.height, self.width, 3):
                 self.temp_frame_buffer = np.zeros((self.height, self.width, 3), dtype=np.uint8)
             
+            # Añadir esta línea para rastrear los fragmentos recibidos en el último ciclo
+            self.fragments_received_in_last_cycle = 0
+
         except Exception as e:
             print(f"Error al inicializar la cámara: {e}. Deshabilitando video.")
             if self.cap:
@@ -213,14 +215,17 @@ class Minimal_Video(minimal.Minimal):
 
     def video_loop(self):
         
+        
         while self.running:
-                       
+                        
             # 1. Capturar frame
             _, frame = self.cap.read()
             data = frame.tobytes()
 
             # 2. Entrelazar envío y recepción de fragmentos
-            self.temp_frame_buffer.fill(0)
+            
+            # Contador de fragmentos recibidos en este ciclo
+            fragments_received_this_cycle = 0
             
             for frag_idx in range(self.total_frags):
                 # ENVÍO: Enviar un fragmento
@@ -252,6 +257,7 @@ class Minimal_Video(minimal.Minimal):
                             end = min(start + len(payload), self.expected_frame_size)
                             flat_frame = self.temp_frame_buffer.reshape(-1)
                             flat_frame[start:end] = np.frombuffer(payload, dtype=np.uint8, count=(end-start))
+                            fragments_received_this_cycle += 1
                         except struct.error:
                             pass
                 except BlockingIOError:
@@ -261,6 +267,10 @@ class Minimal_Video(minimal.Minimal):
             
             # 3. Actualizar y mostrar el frame remoto
             self.remote_frame = self.temp_frame_buffer.copy()
+            
+            # Opcional: registrar estadísticas de recepción para debug
+            self.fragments_received_in_last_cycle = fragments_received_this_cycle
+            
             cv2.imshow("Video", self.remote_frame)
             cv2.waitKey(1)
 
