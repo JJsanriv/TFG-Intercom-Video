@@ -155,44 +155,43 @@ class Minimal_Video(minimal.Minimal):
         self.running = True
 
     def video_loop(self):
-        while self.running:
-            _, frame = self.cap.read()
-            data = frame.tobytes()
+        try:
+            while self.running:
+                _, frame = self.cap.read()
+                data = frame.tobytes()
 
-            for frag_idx in range(self.total_frags):
-                # ENVÍO
-                start, end = self.fragment_ranges[frag_idx]
-                payload = data[start:end]
-                packet = self.fragment_headers[frag_idx] + payload
+                for frag_idx in range(self.total_frags):
+                    # ENVÍO
+                    start, end = self.fragment_ranges[frag_idx]
+                    payload = data[start:end]
+                    packet = self.fragment_headers[frag_idx] + payload
 
-                try:
-                    self.video_sock.sendto(packet, self.video_addr)
-                except BlockingIOError:
-                    # No hacemos continue, permitimos seguir a la recepción
-                    pass
+                    try:
+                        self.video_sock.sendto(packet, self.video_addr)
+                    except BlockingIOError:
+                        # No hacemos continue, permitimos seguir a la recepción
+                        pass
 
-                # RECEPCIÓN (espera hasta 1 ms)
-                try:
+                    # RECEPCIÓN (espera hasta 1 ms)
                     rlist, _, _ = select.select([self.video_sock], [], [], 0.001)
                     if rlist:
                         packet, addr = self.video_sock.recvfrom(self.effective_video_payload_size + self.header_size)
                         header = packet[:self.header_size]
                         payload = packet[self.header_size:]
-                        try:
-                            recv_frag_idx, = struct.unpack(self._header_format, header)
-                            start = recv_frag_idx * self.effective_video_payload_size
-                            end = min(start + len(payload), self.expected_frame_size)
-                            flat_frame = self.remote_frame.reshape(-1)
-                            flat_frame[start:end] = np.frombuffer(payload, dtype=np.uint8, count=(end - start))
-                        except struct.error:
-                            pass
-                except BlockingIOError:
-                    pass
-                except Exception:
-                    pass
+                            
+                        recv_frag_idx, = struct.unpack(self._header_format, header)
+                        start = recv_frag_idx * self.effective_video_payload_size
+                        end = min(start + len(payload), self.expected_frame_size)
+                        flat_frame = self.remote_frame.reshape(-1)
+                        flat_frame[start:end] = np.frombuffer(payload, dtype=np.uint8, count=(end - start))
 
-            cv2.imshow("Video", self.remote_frame)
-            cv2.waitKey(1)
+                    
+                cv2.imshow("Video", self.remote_frame)
+                cv2.waitKey(1)
+
+        except Exception:
+            # Ocurre cuando frame es None, normalmente al detener con CTRL+C
+            pass  # Sal del hilo limpiamente, sin mostrar errores
 
     def run(self):
         # Si el video no está habilitado, comportarse como minimal.py
@@ -267,8 +266,7 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
             " | " + f"{'VIDEO (msg)':^13s}"
             " | " + f"{'AUDIO (kbps)':^15s}"
             " | " + f"{'VIDEO (kbps)':^15s}"
-            " |     " + f"{'FRAGS':^9s}"
-            "       |     " + f"{'CPU (%)':^8s}"
+            " |     " + f"{'CPU (%)':^8s}"
         )
         header2 = (
             f"{'Cycle':>8s}"
@@ -276,12 +274,33 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
             "   | " + f"{'Sent':>5s} {'Recv':>5s}"
             "   | " + f"{'Sent':>6s} {'Recv':>6s}"
             "   | " + f"{'Sent':>6s} {'Recv':>6s}"
-            "   | " + f"{'Recv/cycle ':>5s} {'Total':>3s}"
             "   | " + f"{'Program':>4s} {'System':>4s}"
         )
         print(header1)
         print(header2)
-        print("=" * (8 + 3 + 13 + 3 + 13 + 3 + 15 + 3 + 15 + 3 + 9 + 3 + 8 + 17))
+        print("=" * (8 + 3 + 13 + 3 + 13 + 3 + 15 + 3 + 15 + 3 + 8 + 9))
+
+    def print_footer(self):
+        # Imprime el mismo pie de tabla que el encabezado pero con alineación "al revés"
+        header3 = (
+            f"{'Cycle':>8s}"
+            " | " + f"{'Sent':>5s} {'Recv':>5s}"
+            "   | " + f"{'Sent':>5s} {'Recv':>5s}"
+            "   | " + f"{'Sent':>6s} {'Recv':>6s}"
+            "   | " + f"{'Sent':>6s} {'Recv':>6s}"
+            "   | " + f"{'Program':>4s} {'System':>4s}"
+        )
+        header4 = (
+            f"{'':8s}"
+            " | " + f"{'AUDIO (msg)':^13s}"
+            " | " + f"{'VIDEO (msg)':^13s}"
+            " | " + f"{'AUDIO (kbps)':^15s}"
+            " | " + f"{'VIDEO (kbps)':^15s}"
+            " |     " + f"{'CPU (%)':^8s}"
+        )
+        print(header3)
+        print(header4)
+        print("=" * (8 + 3 + 13 + 3 + 13 + 3 + 15 + 3 + 15 + 3 + 8 + 4))
 
     def loop_cycle_feedback(self):
         if not args.show_video or not hasattr(self, 'cap') or self.cap is None:
@@ -294,6 +313,9 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
         self.old_CPU_time = psutil.Process().cpu_times()[0]
 
         start_time = self._stats_start_time
+
+        # Imprime una vez el footer al principio debajo de la cabecera
+        self.print_footer()
 
         while self.running:
             now = time.time()
@@ -317,25 +339,26 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
             self._total_video_sent_bytes += self.video_sent_bytes_count
             self._total_video_received_bytes += self.video_received_bytes_count
 
-            # Guarda histórico de fragmentos recibidos por ciclo
-            self._fragments_received_history.append(self._fragments_received_this_cycle)
-
             time_info = ""
             if self.end_time:
                 elapsed_total = now - start_time
                 progress = min(100, 100 * elapsed_total / args.reading_time)
                 time_info = f" | {elapsed_total:.1f}s/{args.reading_time}s ({progress:.0f}%)"
 
+            # Sube 3 líneas para sobreescribir el footer (ajusta según las líneas de tu footer)
+            print("\033[3A", end='')  
+            # Imprime el ciclo
             print(
                 f"{cycle:>8d} |"
                 f"{self.sent_messages_count:>5d} {self.received_messages_count:>5d}    |"
                 f"{self.video_sent_messages_count:>5d} {self.video_received_messages_count:>5d}    |"
                 f"{audio_sent_kbps:>6d} {audio_recv_kbps:>6d}    |"
                 f"{video_sent_kbps:>6d} {video_recv_kbps:>6d}    |"
-                f"{self._fragments_received_this_cycle:>5d} {self.total_frags:>3d}            |"
-                f"{int(self.CPU_usage):>4d} {int(self.global_CPU_usage):>6d}"
+                f"{int(self.CPU_usage):>4d} {int(self.global_CPU_usage):>6d}       "
                 f"{time_info}"
             )
+            # Vuelve a imprimir el footer
+            self.print_footer()
 
             # Reiniciar contadores de uso
             self.sent_bytes_count = 0
@@ -346,20 +369,18 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
             self.video_received_bytes_count = 0
             self.video_sent_messages_count = 0
             self.video_received_messages_count = 0
-            self._fragments_received_this_cycle = 0
 
             cycle += 1
             self.old_time = now
             self.old_CPU_time = psutil.Process().cpu_times()[0]
             time.sleep(1)
 
-        self.running = False
-
     def print_final_averages(self):
         total_time = time.time() - self._stats_start_time
         if total_time < 0.1:
             print("Duración demasiado corta para calcular promedios de ancho de banda.")
             return
+        
 
         audio_sent_kbps = self._total_audio_sent_bytes * 8 / 1000 / total_time
         audio_received_kbps = self._total_audio_received_bytes * 8 / 1000 / total_time
@@ -371,37 +392,36 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
             if self._fragments_received_history else 0
         )
 
+        
+
         print("\n=== Estadísticas globales de ancho de banda ===")
         print(f"Audio enviado:    {audio_sent_kbps:.2f} kbps")
         print(f"Audio recibido:   {audio_received_kbps:.2f} kbps")
         print(f"Video enviado:    {video_sent_kbps:.2f} kbps")
         print(f"Video recibido:   {video_received_kbps:.2f} kbps")
-        print(f"Avg frags/ciclo:  {avg_frags:.1f} / {self.total_frags}")
         print(f"Tiempo total:     {total_time:.1f} s")
         print("=======================================================")
 
     def video_loop(self):
-        while self.running:
-            _, frame = self.cap.read()
-            data = frame.tobytes()
-            fragments_received_this_cycle = 0
+        try:
+            while self.running:
+                _, frame = self.cap.read()
+                data = frame.tobytes()
+                fragments_received_this_cycle = 0
 
-            for frag_idx in range(self.total_frags):
-                # ENVÍO
-                start, end = self.fragment_ranges[frag_idx]
-                payload = data[start:end]
-                packet = self.fragment_headers[frag_idx] + payload
+                for frag_idx in range(self.total_frags):
+                    # ENVÍO
+                    start, end = self.fragment_ranges[frag_idx]
+                    payload = data[start:end]
+                    packet = self.fragment_headers[frag_idx] + payload
 
-                try:
                     self.video_sock.sendto(packet, self.video_addr)
                     self.video_sent_bytes_count += len(packet)
                     self.video_sent_messages_count += 1
-                except BlockingIOError:
-                    # No hacemos continue, permitimos seguir a la recepción
-                    pass
+                    
 
-                # RECEPCIÓN (espera hasta 1 ms)
-                try:
+                    # RECEPCIÓN (espera hasta 1 ms)
+                    
                     rlist, _, _ = select.select([self.video_sock], [], [], 0.001)
                     if rlist:
                         packet, addr = self.video_sock.recvfrom(self.effective_video_payload_size + self.header_size)
@@ -409,23 +429,22 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
                         self.video_received_messages_count += 1
                         header = packet[:self.header_size]
                         payload = packet[self.header_size:]
-                        try:
-                            recv_frag_idx, = struct.unpack(self._header_format, header)
-                            start = recv_frag_idx * self.effective_video_payload_size
-                            end = min(start + len(payload), self.expected_frame_size)
-                            flat_frame = self.remote_frame.reshape(-1)
-                            flat_frame[start:end] = np.frombuffer(payload, dtype=np.uint8, count=(end-start))
-                            fragments_received_this_cycle += 1
-                        except struct.error:
-                            pass
-                except BlockingIOError:
-                    pass
-                except Exception:
-                    pass
+                            
+                        recv_frag_idx, = struct.unpack(self._header_format, header)
+                        start = recv_frag_idx * self.effective_video_payload_size
+                        end = min(start + len(payload), self.expected_frame_size)
+                        flat_frame = self.remote_frame.reshape(-1)
+                        flat_frame[start:end] = np.frombuffer(payload, dtype=np.uint8, count=(end-start))
+                        fragments_received_this_cycle += 1
 
-            self._fragments_received_this_cycle = fragments_received_this_cycle
-            cv2.imshow("Video", self.remote_frame)
-            cv2.waitKey(1)
+
+                self._fragments_received_this_cycle = fragments_received_this_cycle
+                cv2.imshow("Video", self.remote_frame)
+                cv2.waitKey(1)
+                
+        except Exception:
+            # Ocurre cuando frame es None, normalmente al detener con CTRL+C
+            pass
 
     def run(self):
         # Si no hay video, usar el comportamiento de Minimal__verbose
@@ -443,10 +462,12 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
             return
 
         if self.cap is not None:
-            self.print_header()
+            print("Iniciando video con bucle unificado y protocolo simplificado (verbose)...")
+            print("Presiona Enter para terminar\n")
+            self.print_header()  # Imprimir la tabla después de los mensajes
+
             cycle_feedback_thread = threading.Thread(target=self.loop_cycle_feedback, daemon=True, name="FeedbackThread")
             cycle_feedback_thread.start()
-            print("Iniciando video con bucle unificado y protocolo simplificado (verbose)...")
 
             t_unified = threading.Thread(target=self.video_loop, daemon=True, name="UnifiedVideoThread")
             t_unified.start()
@@ -456,19 +477,20 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
                     if self.end_time:
                         self.time_event.wait(timeout=args.reading_time + 0.5)
                     else:
-                        input("Presiona Enter para terminar\n")
-
+                        input()
             except KeyboardInterrupt:
+                self.running = False
+                cycle_feedback_thread.join()  # Espera a que el hilo de feedback (que imprime el footer) termine
                 print("Interrupción por teclado detectada.")
             finally:
                 print("Deteniendo aplicación de video...")
-                self.running = False
                 if self.cap and self.cap.isOpened():
                     self.cap.release()
                 cv2.destroyAllWindows()
                 if hasattr(self, 'video_sock') and self.video_sock:
                     self.video_sock.close()
                 print("Aplicación de video detenida.")
+
 
 
 if __name__ == "__main__":
