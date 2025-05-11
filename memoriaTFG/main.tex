@@ -87,11 +87,22 @@
     \thispagestyle{empty}
 \end{titlepage}
 
+% Página en blanco antes del índice
+\newpage
+\thispagestyle{empty}
+\mbox{}
+\newpage
+
 % A partir de la siguiente página, se aplica el estilo principal
 \pagestyle{main}
 
 % Generamos la tabla de contenidos
 \tableofcontents
+
+% Página en blanco después del índice
+\newpage
+\thispagestyle{empty}
+\mbox{}
 \newpage
 
 % Incluimos las secciones con sus correspondientes archivos
@@ -121,6 +132,8 @@
 \newpage
 \section{Bibliografía}
 \input{bibliografia}
+
+
 
 % Contraportada
 \newpage
