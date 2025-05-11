@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
 """
-Minimal_Video_FPS: Extends Minimal_Video to control the FPS (frames per second) of the video transmission. It acts as a regulator to avoid CPU and network overload.
+Minimal_Video_FPS: Extends Minimal_Video to control the FPS (frames per second) of the video transmission. 
+It adjusts the FPS compatible with the current resolution of the camera and acts as a regulator to avoid CPU and network overload.
 
-FPS control is implemented by waiting the necessary time between frames to maintain the requested rate. If processing takes too long, no waiting occurs.
+FPS control is implemented by waiting the necessary time between frames to maintain the requested rate. 
+If processing takes too long, no waiting occurs.
 
-It inherits all parameters from Minimal_Video and uses --fps to determine the target rate.
+It inherits all parameters from Minimal_Video so you can use --fps to determine the target rate.
 """
 
 import time
