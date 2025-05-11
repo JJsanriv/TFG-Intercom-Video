@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
 """
-Minimal_Video_Resolution: Extends Minimal_Video_FPS to allow selecting specific video resolutions. 
-If the requested resolution is not available, it selects the closest higher one and then resizes the image to the desired size.
+Minimal_Video_Resolution: Extends Minimal_Video_FPS to allow selecting specific video resolutions compatible with the camera. 
+If the requested resolution is not available, it selects the closest higher one and then resizes the image to the desired resolution.
 
-It inherits all parameters from Minimal_Video_FPS and adds: --width: Desired width in pixels
---height: Desired height in pixels
---camera_device: Camera device (e.g., /dev/video0)
+It inherits all parameters from Minimal_Video_FPS and adds:
+    --camera_device: Camera device (e.g., /dev/video0)
 """
 
 import cv2
