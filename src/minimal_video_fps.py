@@ -1,21 +1,17 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
 """
-Minimal_Video_FPS: Extiende Minimal_Video para controlar los FPS (frames por segundo) de 
-la transmisión de video. Actúa como un regulador para evitar sobrecarga de CPU y red.
+Minimal_Video_FPS: Extends Minimal_Video to control the FPS (frames per second) of the video transmission. It acts as a regulator to avoid CPU and network overload.
 
-El control de FPS se implementa esperando el tiempo necesario entre frames para mantener
-la tasa solicitada. Si el procesamiento toma demasiado tiempo, no se espera.
+FPS control is implemented by waiting the necessary time between frames to maintain the requested rate. If processing takes too long, no waiting occurs.
 
-Hereda todos los parámetros de Minimal_Video y usa --fps para determinar la tasa objetivo.
+It inherits all parameters from Minimal_Video and uses --fps to determine the target rate.
 """
 
 import time
 import minimal_video
-import struct
 import numpy as np
-import select
-import cv2
+
 
 class Minimal_Video_FPS(minimal_video.Minimal_Video):
     def __init__(self):
@@ -23,7 +19,6 @@ class Minimal_Video_FPS(minimal_video.Minimal_Video):
         self.set_fps()
 
     def set_fps(self):
-        """Configura el FPS objetivo desde los argumentos"""
         self.fps_target = None
         if hasattr(minimal_video, 'args'):
             args = minimal_video.args
@@ -32,17 +27,16 @@ class Minimal_Video_FPS(minimal_video.Minimal_Video):
                 print(f"[Minimal_Video_FPS] FPS objetivo para control de bucle: {self.fps_target}")
     
     def _control_framerate(self, start_time):
-        """Controla la tasa de frames esperando el tiempo necesario"""
+
         if self.fps_target:
             elapsed = time.time() - start_time
             frame_time = 1.0 / self.fps_target
-            delay = frame_time - elapsed
+            delay = frame_time - elapsed 
             
             if delay > 0:
                 time.sleep(delay)
     
     def video_loop(self):
-        """Versión modificada que añade control de FPS"""
         try:
             while self.running:
                 loop_start = time.time()
@@ -57,12 +51,12 @@ class Minimal_Video_FPS(minimal_video.Minimal_Video):
             pass
 
 class Minimal_Video_FPS_Verbose(Minimal_Video_FPS, minimal_video.Minimal_Video__verbose):
-    """Versión verbose que añade estadísticas de FPS"""
+
     def __init__(self):
         self._fps_real = 0
-        self._frame_times = []
-        self._max_frame_history = 30
-        self._last_frame_time = time.time()
+        self._frame_times = [] # List to store frame times
+        self._max_frame_history = 30 # Number of frames to average
+        self._last_frame_time = time.time() 
         Minimal_Video_FPS.__init__(self)
         minimal_video.Minimal_Video__verbose.__init__(self)
         print("[Minimal_Video_FPS_Verbose] Modo verbose con estadísticas de FPS inicializado")
@@ -73,11 +67,11 @@ class Minimal_Video_FPS_Verbose(Minimal_Video_FPS, minimal_video.Minimal_Video__
         self._last_frame_time = now
 
         self._frame_times.append(frame_duration)
-        if len(self._frame_times) > self._max_frame_history:
-            self._frame_times.pop(0)
+        if len(self._frame_times) > self._max_frame_history: # Limit the history size
+            self._frame_times.pop(0) # Remove the oldest frame time
         if self._frame_times:
-            avg_frame_time = sum(self._frame_times) / len(self._frame_times)
-            self._fps_real = 1.0 / avg_frame_time if avg_frame_time > 0 else 0
+            avg_frame_time = sum(self._frame_times) / len(self._frame_times) # Average frame time
+            self._fps_real = 1.0 / avg_frame_time if avg_frame_time > 0 else 0 # Calculate FPS
         Minimal_Video_FPS._control_framerate(self, start_time)
 
     def video_loop(self):

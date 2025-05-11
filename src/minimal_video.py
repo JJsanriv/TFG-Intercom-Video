@@ -1,22 +1,21 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
 """
-Minimal_Video: Extiende de minimal.py para agregar transmisión/visualización de video sin
-compresión/encodificación, usando raw data. Incluye opción verbose (--show_stats, --show_samples y --show_spectrum).
-- Se transmite video full‐duplex vía UDP sin usar colas, es decir, se envía el frame directamente.
-- El flag --show_video habilita la visualización y la transmisión de video.
-- Sin --show_video, se comporta exactamente como minimal.py (solo audio).
+Minimal_Video: Extends minimal.py to add video transmission/display without compression/encoding, using raw data. Includes verbose option (--show_stats, --show_samples, and --show_spectrum).
 
-Utiliza un socket UDP para transmisión y fragmenta los frames.
-Header (big-endian): FragIdx(H) - Solo se transmite la posición del fragmento
+    - Full‐duplex video is transmitted via UDP without using queues; that is, the frame is sent directly.
+    - The --show_video flag enables video display and transmission.
+    - Without --show_video, it behaves exactly like minimal.py (audio only).
 
-Nuevos parámetros:
---video_payload_size : Tamaño deseado (bytes) payload video/fragmento UDP (defecto 1400).
---width              : Ancho del video (defecto 320).
---height             : Alto del video (defecto 180).
---fps                : Frames por segundo video (defecto 30).
---show_video         : Habilita la visualización y transmisión del video (desactivado por defecto).
---video_port         : Puerto para transmitir/recibir video (defecto 4445).
+A UDP socket is used for transmission, and frames are fragmented. Header (big-endian): FragIdx(H) – Only the fragment position is transmitted.
+
+New parameters: 
+    --video_payload_size : Desired size (bytes) of video/UDP fragment payload (default 1400). 
+    --width : Video width (default 320). 
+    --height : Video height (default 180). 
+    --fps : Video frames per second (default 30). 
+    --show_video : Enables video display and transmission (disabled by default). 
+    --video_port : Port to transmit/receive video (default 4445).
 """
 
 import cv2
@@ -29,7 +28,6 @@ import numpy as np
 import select
 import argparse
 import psutil
-import logging
 import minimal
 
 spinner = minimal.spinning_cursor()
@@ -40,7 +38,6 @@ def int_or_str(text):
     except ValueError:
         return text
 
-# Utilizamos el parser de minimal y le agregamos los argumentos extra
 if not hasattr(minimal, 'parser'):
     minimal.parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser = minimal.parser
@@ -133,7 +130,7 @@ class Minimal_Video(minimal.Minimal):
 
             if not hasattr(self, 'temp_frame_buffer') or self.temp_frame_buffer.shape != (self.height, self.width, 3):
                 self.temp_frame_buffer = np.zeros((self.height, self.width, 3), dtype=np.uint8)
-            # fragments_received_this_cycle ya NO está en minimal, sólo en verbose
+            
 
         except Exception as e:
             print(f"Error al inicializar la cámara: {e}. Deshabilitando video.")
@@ -143,7 +140,6 @@ class Minimal_Video(minimal.Minimal):
 
         self.running = True
 
-    # --- Métodos auxiliares para reutilizar en herencias y variantes ---
     def capture_image(self):
         ret, frame = self.cap.read()
         return frame.tobytes()
@@ -168,8 +164,8 @@ class Minimal_Video(minimal.Minimal):
             recv_frag_idx, = struct.unpack(self._header_format, header)
             start = recv_frag_idx * self.effective_video_payload_size
             end = min(start + len(payload), self.expected_frame_size)
-            flat_frame = self.remote_frame.reshape(-1)
-            flat_frame[start:end] = np.frombuffer(payload, dtype=np.uint8, count=(end - start))
+            flat_frame = self.remote_frame.reshape(-1) # Flatten the frame for direct assignment
+            flat_frame[start:end] = np.frombuffer(payload, dtype=np.uint8, count=(end - start)) # Direct assignment
             return recv_frag_idx, len(packet)
         return None, 0
 
@@ -177,7 +173,6 @@ class Minimal_Video(minimal.Minimal):
         cv2.imshow("Video", self.remote_frame)
         cv2.waitKey(1)
 
-    # --- Loop principal de video usando los métodos auxiliares ---
     def video_loop(self):
         try:
             while self.running:

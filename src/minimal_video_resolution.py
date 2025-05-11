@@ -1,18 +1,15 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
 """
-Minimal_Video_Resolution: Extiende Minimal_Video_FPS para permitir seleccionar resoluciones 
-de video específicas. Si la resolución solicitada no está disponible, selecciona la más cercana
-por encima y luego reescala la imagen al tamaño deseado.
+Minimal_Video_Resolution: Extends Minimal_Video_FPS to allow selecting specific video resolutions. 
+If the requested resolution is not available, it selects the closest higher one and then resizes the image to the desired size.
 
-Hereda todos los parámetros de Minimal_Video_FPS y añade:
---width: Ancho deseado en píxeles
---height: Alto deseado en píxeles
---camera_device: Dispositivo de cámara (ej: /dev/video0)
+It inherits all parameters from Minimal_Video_FPS and adds: --width: Desired width in pixels
+--height: Desired height in pixels
+--camera_device: Camera device (e.g., /dev/video0)
 """
 
 import cv2
-import argparse
 import minimal_video_fps
 import minimal_video
 import numpy as np
@@ -21,10 +18,8 @@ import struct
 import subprocess
 import re
 import os
-import logging
-import select
 
-# Añadir argumento para especificar el dispositivo de cámara
+
 if not hasattr(minimal_video.parser, 'camera_device_added'):
     minimal_video.parser.add_argument('--camera_device', type=str, default='/dev/video0',
                                       help='Dispositivo de cámara (ej: /dev/video0)')
@@ -34,14 +29,11 @@ if not hasattr(minimal_video.parser, 'camera_device_added'):
 class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
     def __init__(self):
         super().__init__()
-        # Configurar la resolución después de la inicialización base
         self.set_resolution()
-        # Reinicializar parámetros de fragmentación si cambia la resolución
         if self.resize_needed:
             self._update_fragment_parameters()
 
     def set_resolution(self):
-        """Configura la resolución de video deseada y la resolución real a usar"""
         self.target_width = 0
         self.target_height = 0
         self.resize_needed = False
@@ -51,7 +43,6 @@ class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
             self.target_width = args.width
             self.target_height = args.height
 
-            # Obtener resoluciones disponibles
             self._find_closest_resolution()
 
             print(f"[Minimal_Video_Resolution] Resolución objetivo: {self.target_width}x{self.target_height}")
@@ -60,29 +51,21 @@ class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
                 print("[Minimal_Video_Resolution] Se aplicará reescalado de imagen")
 
     def _get_supported_resolutions(self):
-        """
-        Obtiene las resoluciones soportadas por la cámara usando v4l2-ctl
-        
-        Returns:
-            list: Lista de tuplas (ancho, alto) ordenadas de menor a mayor
-        """
         supported_resolutions = []
         camera_device = getattr(minimal_video.args, 'camera_device', '/dev/video0')
         
         try:
-            # Comprobar si v4l2-ctl está disponible
             try:
                 subprocess.run(['which', 'v4l2-ctl'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             except (subprocess.CalledProcessError, FileNotFoundError):
                 print("[Minimal_Video_Resolution] v4l2-ctl no encontrado, usando resoluciones estándar")
                 return self._get_standard_resolutions()
                 
-            # Comprobar si el dispositivo existe
             if not os.path.exists(camera_device):
                 print(f"[Minimal_Video_Resolution] Dispositivo {camera_device} no encontrado, usando resoluciones estándar")
                 return self._get_standard_resolutions()
             
-            # Ejecutar el comando v4l2-ctl para obtener las resoluciones soportadas
+            
             cmd = ['v4l2-ctl', f'--device={camera_device}', '--list-formats-ext']
             result = subprocess.run(cmd, capture_output=True, text=True)
             
@@ -90,14 +73,14 @@ class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
                 print("[Minimal_Video_Resolution] Error al obtener formatos de cámara, usando resoluciones estándar")
                 return self._get_standard_resolutions()
             
-            # Analizar la salida para extraer las resoluciones
+            # It analyzes the output of v4l2-ctl to extract supported resolutions
             output = result.stdout
             size_pattern = r'Size: Discrete (\d+)x(\d+)'
             matches = re.findall(size_pattern, output)
             for width_str, height_str in matches:
                 width = int(width_str)
                 height = int(height_str)
-                if (width, height) not in supported_resolutions:  # Evitar duplicados
+                if (width, height) not in supported_resolutions:  # Avoid duplicates
                     supported_resolutions.append((width, height))
             supported_resolutions.sort(key=lambda res: res[0] * res[1])
             if not supported_resolutions:
@@ -109,7 +92,7 @@ class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
             return self._get_standard_resolutions()
 
     def _get_standard_resolutions(self):
-        """Devuelve lista de resoluciones estándar como fallback"""
+        """Returns a list of standard resolutions if no specific ones are found"""
         standard_resolutions = [
             (320, 240),    # QVGA
             (352, 288),    # CIF
@@ -129,23 +112,20 @@ class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
         return standard_resolutions
 
     def _find_closest_resolution(self):
-        """Encuentra la resolución disponible más cercana por encima de la solicitada"""
+    
         if not hasattr(self, 'cap') or self.cap is None:
             return
 
-        # Intentar establecer la resolución deseada directamente
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.target_width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.target_height)
 
-        # Verificar qué resolución se estableció realmente
         self.capture_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.capture_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-        # Determinar si necesitamos reescalar
         self.resize_needed = (self.capture_width != self.target_width or 
                               self.capture_height != self.target_height)
 
-        # Si la resolución actual es menor que la solicitada, buscar la siguiente más grande
+        # If the requested resolution is not available, find the closest higher one
         if self.capture_width < self.target_width or self.capture_height < self.target_height:
             supported_resolutions = self._get_supported_resolutions()
             closest_resolution = None
@@ -165,7 +145,6 @@ class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
                 print("[Minimal_Video_Resolution] No se encontró resolución adecuada")
 
     def _update_fragment_parameters(self):
-        """Actualiza los parámetros de fragmentación según la resolución objetivo"""
         if not self.resize_needed:
             return
 
@@ -182,14 +161,12 @@ class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
         print(f"[Minimal_Video_Resolution] Actualizado fragmentación para {self.total_frags} fragmentos")
 
     def _process_frame(self, frame):
-        """Procesa el frame aplicando reescalado si es necesario"""
         if self.resize_needed and hasattr(self, 'target_width') and self.target_width > 0:
             interpolation = cv2.INTER_AREA if (frame.shape[1] > self.target_width) else cv2.INTER_LINEAR
             resized_frame = cv2.resize(frame, (self.target_width, self.target_height), interpolation=interpolation)
             return resized_frame
         return frame
 
-    # --- Sobrescribir capture_image para aplicar reescalado antes de convertir a bytes ---
     def capture_image(self):
         ret, frame = self.cap.read()
         frame = self._process_frame(frame)
@@ -209,7 +186,7 @@ class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
             pass
 
 class Minimal_Video_Resolution_Verbose(Minimal_Video_Resolution, minimal_video_fps.Minimal_Video_FPS_Verbose):
-    """Versión verbose que añade estadísticas de resolución"""
+    
     def __init__(self):
         self._resize_times = []
         self._max_resize_history = 30
@@ -221,7 +198,7 @@ class Minimal_Video_Resolution_Verbose(Minimal_Video_Resolution, minimal_video_f
         print("[Minimal_Video_Resolution_Verbose] Modo verbose con estadísticas de resolución inicializado")
 
     def _process_frame(self, frame):
-        """Versión con medición de tiempo del proceso de reescalado"""
+        
         if self.resize_needed:
             start_time = time.time()
             resized_frame = super()._process_frame(frame)
