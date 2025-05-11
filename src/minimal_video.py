@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
 """
-Minimal_Video: Extends minimal.py to add video transmission/display without compression/encoding, using raw data. Includes verbose option (--show_stats, --show_samples, and --show_spectrum).
+Minimal_Video: Extends minimal.py to add video transmission/display without compression/encoding, using raw data. Includes verbose option (--show_stats, --show_samples and --show_spectrum).
 
-    - Full‐duplex video is transmitted via UDP without using queues; that is, the frame is sent directly.
-    - The --show_video flag enables video display and transmission.
+    - Full‐duplex video is transmitted via UDP without using queues: the frame is sent directly.
+    - The --show_video flag enables video display and transmission. By default, it is disabled.
     - Without --show_video, it behaves exactly like minimal.py (audio only).
 
-A UDP socket is used for transmission, and frames are fragmented. Header (big-endian): FragIdx(H) – Only the fragment position is transmitted.
+A UDP socket is used for transmission, and frames are fragmented. 
+Header (big-endian): FragIdx(H) – Only the fragment position is transmitted.
 
 New parameters: 
     --video_payload_size : Desired size (bytes) of video/UDP fragment payload (default 1400). 
