@@ -1,0 +1,147 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{ragged2e}
+\usepackage{tikz} % Añadimos el paquete TikZ
+\usepackage{anyfontsize} % Para tamaños de fuente personalizados
+
+% Configuración de los márgenes y la fuente
+\geometry{top=25mm, bottom=25mm, left=25mm, right=25mm}
+\renewcommand{\baselinestretch}{1.1}
+\setlength{\parindent}{0pt}
+
+% Definición de estilos con fancyhdr
+% Estilo para la portada (sin pie de página)
+\fancypagestyle{titlepage}{
+    \fancyhf{}
+    \thispagestyle{empty}
+}
+
+% Estilo principal para el resto del documento:
+% El título del trabajo se muestra a la izquierda en fuente pequeña,
+% y el número de página a la derecha.
+\fancypagestyle{main}{
+    \fancyhf{} % Limpia cabecera y pie
+    \fancyfoot[L]{\small \textit{Mejora y Ampliación de un Sistema de Comunicación Bidireccional por Voz y Vídeo}}
+    \fancyfoot[R]{\thepage}
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+}
+% Configuración de la fuente Times New Roman
+\renewcommand{\rmdefault}{ptm} % Cambia la fuente a Times New Roman
+
+\begin{document}
+
+% Portada
+\begin{titlepage}
+    \pagestyle{titlepage}
+    
+    % Insertamos la imagen de fondo con TikZ
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[inner sep=0pt] at (current page.center) {
+            \includegraphics[width=\paperwidth, height=\paperheight]{images/TFG_II_front}
+        };
+    \end{tikzpicture}
+    
+    \centering
+
+    \vspace*{10cm}
+    
+    % Usar una tabla con relleno a la izquierda
+    \begin{tabular}{p{2.2cm}c}
+        & {\fontsize{22pt}{18pt*1.2}\selectfont
+          \begin{tabular}{c}
+                \textbf{Mejora y Ampliación} \\[8pt] 
+                \textbf{de un Sistema de Comunicación Bidireccional} \\[8pt]
+                \textbf{por Voz y Vídeo}
+          \end{tabular}}
+    \end{tabular}
+    
+    \vfill
+    
+    % Colocamos el curso
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[anchor=south west, inner sep=0pt] at ([xshift=5.3cm, yshift=5.1cm]current page.south west) {
+            \Huge \textbf{Curso 2024/2025}
+        };
+    \end{tikzpicture}
+
+    % Colocamos el nombre de alumno en la esquina inferior izquierda
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[anchor=south west, inner sep=0pt] at ([xshift=5.3cm, yshift=2.9cm]current page.south west) {
+            \fontsize{18pt}{20pt}\selectfont Jorge Jesús Sánchez Rivas 
+        };
+    \end{tikzpicture}
+    
+    % Colocamos el nombre del tutor en la esquina inferior derecha
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[anchor=south west, inner sep=0pt] at ([xshift=15cm, yshift=11mm]current page.south west) {
+            \fontsize{18pt}{20pt}\selectfont Vicente González Ruiz
+        };
+    \end{tikzpicture}
+    
+    \thispagestyle{empty}
+\end{titlepage}
+
+% A partir de la siguiente página, se aplica el estilo principal
+\pagestyle{main}
+
+% Generamos la tabla de contenidos
+\tableofcontents
+\newpage
+
+% Incluimos las secciones con sus correspondientes archivos
+\section{Justificación y objetivos del proyecto}
+\input{justificacion_y_objetivos}
+
+\newpage
+\section{Fases de realización y cronograma}
+\input{realizacion_y_cronograma}
+
+\newpage
+\section{Estándares de calidad}
+\input{estandares_calidad}
+
+\newpage
+\section{Especificaciones y requerimientos técnicos}
+\input{especificaciones_y_requerimientos_tecnicos}
+
+\newpage
+\section{Resultados y discusión}
+\input{resultados_y_discusion}
+
+\newpage
+\section{Conclusión}
+\input{conclusion}
+
+\newpage
+\section{Bibliografía}
+\input{bibliografia}
+
+% Contraportada
+\newpage
+\begin{titlepage}
+    \pagestyle{titlepage}
+    
+    % Insertamos la imagen de fondo con TikZ para la contraportada
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[inner sep=0pt] at (current page.center) {
+            \includegraphics[width=\paperwidth, height=\paperheight]{images/TFG_II_back}
+        };
+    \end{tikzpicture}
+    
+    
+     \begin{tikzpicture}[remember picture, overlay]
+         \node[anchor=south east, inner sep=0pt] at ([xshift=-1.5cm, yshift=1.1cm]current page.south east) {
+            \fontsize{16pt}{16pt}\selectfont \textbf{GRADO EN INGENIERÍA INFORMÁTICA  2024/2025}
+         };
+     \end{tikzpicture}
+    
+    \thispagestyle{empty}
+\end{titlepage}
+
+\end{document}

@@ -1,0 +1,13 @@
+\babel@toc {spanish}{}\relax 
+\contentsline {section}{\numberline {1}Justificación y objetivos del proyecto}{2}{}%
+\contentsline {subsection}{\numberline {1.1}Contextualización}{2}{}%
+\contentsline {subsection}{\numberline {1.2}Justificación}{2}{}%
+\contentsline {subsection}{\numberline {1.3}Objetivos del proyecto}{4}{}%
+\contentsline {subsection}{\numberline {1.4}Metodología}{4}{}%
+\contentsline {subsection}{\numberline {1.5}Impacto esperado}{5}{}%
+\contentsline {section}{\numberline {2}Fases de realización y cronograma}{6}{}%
+\contentsline {section}{\numberline {3}Estándares de calidad}{7}{}%
+\contentsline {section}{\numberline {4}Especificaciones y requerimientos técnicos}{8}{}%
+\contentsline {section}{\numberline {5}Resultados y discusión}{9}{}%
+\contentsline {section}{\numberline {6}Conclusión}{10}{}%
+\contentsline {section}{\numberline {7}Bibliografía}{11}{}%
