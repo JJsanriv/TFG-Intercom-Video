@@ -8,9 +8,16 @@
 \usepackage{ragged2e}
 \usepackage{tikz} % Añadimos el paquete TikZ
 \usepackage{anyfontsize} % Para tamaños de fuente personalizados
+\usepackage{listings} % Para el índice de código fuente
+\usepackage{xcolor} % Para definir el color azul de la línea
+\usepackage{xcolor} % Para definir el color azul de la línea
+\usepackage{hyperref} % <--- ¡AÑADE ESTA LÍNEA AL FINAL DEL PREÁMBULO!
+\usepackage{titlesec}
 
 % Configuración de los márgenes y la fuente
 \geometry{top=25mm, bottom=25mm, left=25mm, right=25mm}
+\setlength{\headheight}{1.2cm}
+\setlength{\headsep}{20pt}
 \renewcommand{\baselinestretch}{1.1}
 \setlength{\parindent}{0pt}
 
@@ -21,15 +28,22 @@
     \thispagestyle{empty}
 }
 
+% Definir color azul corporativo (puedes cambiar el tono)
+\definecolor{tfgazul}{RGB}{16, 77, 173}
+
 % Estilo principal para el resto del documento:
-% El título del trabajo se muestra a la izquierda en fuente pequeña,
-% y el número de página a la derecha.
 \fancypagestyle{main}{
     \fancyhf{} % Limpia cabecera y pie
+    \fancyhead[R]{\includegraphics[height=1.2cm]{images/logo_ual_peque.png}}
+    % Línea azul justo encima del pie de página
+    \renewcommand{\footrulewidth}{0.8pt}
+    \renewcommand{\footrule}{%
+        \color{tfgazul}%
+        \hrule width\headwidth height\footrulewidth \vskip2pt
+    }
     \fancyfoot[L]{\small \textit{Mejora y Ampliación de un Sistema de Comunicación Bidireccional por Voz y Vídeo}}
-    \fancyfoot[R]{\thepage}
+     \fancyfoot[R]{\roman{page}} % <-- Aquí el número romano
     \renewcommand{\headrulewidth}{0pt}
-    \renewcommand{\footrulewidth}{0pt}
 }
 % Configuración de la fuente Times New Roman
 \renewcommand{\rmdefault}{ptm} % Cambia la fuente a Times New Roman
@@ -97,9 +111,52 @@
 \pagestyle{main}
 
 % Generamos la tabla de contenidos
+% Índice general
+% Índice general
+\thispagestyle{empty}
+\renewcommand{\contentsname}{} % Evita que \tableofcontents escriba el título
+\section*{Índice}
+{\color{tfgazul}\rule{\textwidth}{3pt}}
 \tableofcontents
 
-% Página en blanco después del índice
+
+% Página en blanco después del índice general
+\newpage
+\thispagestyle{empty}
+\mbox{}
+\newpage
+
+% Índice de Figuras
+\thispagestyle{empty}
+\renewcommand{\listfigurename}{Índice de figuras}
+\listoffigures
+{\color{tfgazul}\rule{\textwidth}{3pt}}
+
+% Página en blanco después del índice de figuras
+\newpage
+\thispagestyle{empty}
+\mbox{}
+\newpage
+
+% Índice de Tablas
+\thispagestyle{empty}
+\renewcommand{\listtablename}{Índice de tablas}
+\listoftables
+{\color{tfgazul}\rule{\textwidth}{3pt}}
+
+% Página en blanco después del índice de tablas
+\newpage
+\thispagestyle{empty}
+\mbox{}
+\newpage
+
+% Índice de Código
+\thispagestyle{empty}
+\renewcommand{\lstlistlistingname}{Índice del código}
+\lstlistoflistings
+{\color{tfgazul}\rule{\textwidth}{3pt}}
+
+% Página en blanco después del índice de código
 \newpage
 \thispagestyle{empty}
 \mbox{}
@@ -107,10 +164,12 @@
 
 % Incluimos las secciones con sus correspondientes archivos
 \section{Justificación y objetivos del proyecto}
+{\color{tfgazul}\rule{\textwidth}{3pt}}
 \input{justificacion_y_objetivos}
 
 \newpage
 \section{Fases de realización y cronograma}
+{\color{tfgazul}\rule{\textwidth}{3pt}}
 \input{realizacion_y_cronograma}
 
 \newpage
@@ -119,21 +178,23 @@
 
 \newpage
 \section{Especificaciones y requerimientos técnicos}
+{\color{tfgazul}\rule{\textwidth}{3pt}}
 \input{especificaciones_y_requerimientos_tecnicos}
 
 \newpage
 \section{Resultados y discusión}
+{\color{tfgazul}\rule{\textwidth}{3pt}}
 \input{resultados_y_discusion}
 
 \newpage
 \section{Conclusión}
+{\color{tfgazul}\rule{\textwidth}{3pt}}
 \input{conclusion}
 
 \newpage
 \section{Bibliografía}
+{\color{tfgazul}\rule{\textwidth}{3pt}}
 \input{bibliografia}
-
-
 
 % Contraportada
 \newpage
