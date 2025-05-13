@@ -1,0 +1,9 @@
+\babel@toc {spanish}{}\relax 
+\contentsline {section}{\numberline {1}Introducción}{8}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Acerca del proyecto}{8}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Justificación y objetivos del proyecto}{8}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Estructura de InterCom}{9}{subsection.1.3}%
+\contentsline {section}{\numberline {2}Metodología y Especificaciones técnicas}{12}{section.2}%
+\contentsline {section}{\numberline {3}Resultados y discusión}{13}{section.3}%
+\contentsline {section}{\numberline {4}Conclusión}{14}{section.4}%
+\contentsline {section}{\numberline {5}Bibliografía}{15}{section.5}%
