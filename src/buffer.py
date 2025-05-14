@@ -13,6 +13,7 @@ import math
 import struct
 import threading
 import minimal_video
+import minimal_video_resolution
 import soundfile as sf
 import logging
 import queue
@@ -24,7 +25,7 @@ if not hasattr(minimal_video, 'parser'):
 # --- Añadir argumentos específicos para el buffering ---
 minimal_video.parser.add_argument("-b", "--buffering_time", type=int, default=150, help="Miliseconds to buffer")
 
-class Buffering(minimal_video.Minimal_Video):
+class Buffering(minimal_video_resolution.Minimal_Video_Resolution):
     CHUNK_NUMBERS = 1 << 15  # Suficiente para la mayoría de los tiempos de buffering
 
     def __init__(self):
@@ -125,7 +126,7 @@ class Buffering(minimal_video.Minimal_Video):
                 self.receive_and_buffer()
 
 
-class Buffering__verbose(Buffering, minimal_video.Minimal_Video__verbose):
+class Buffering__verbose(Buffering, minimal_video_resolution.Minimal_Video_Resolution_Verbose):
     def __init__(self):
         super().__init__()
 
