@@ -183,13 +183,13 @@ class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
 class Minimal_Video_Resolution_Verbose(Minimal_Video_Resolution, minimal_video_fps.Minimal_Video_FPS_Verbose):
     
     def __init__(self):
-        self._resize_times = []
-        self._max_resize_history = 30
-        self._supported_resolutions = []
+        self.resize_times = []
+        self.max_resize_history = 30
+        self.supported_resolutions = []
         Minimal_Video_Resolution.__init__(self)
-        self._total_resize_time = 0
-        self._resize_count = 0
-        self._supported_resolutions = self.get_supported_resolutions()
+        self.total_resize_time = 0
+        self.resize_count = 0
+        self.supported_resolutions = self.get_supported_resolutions()
         print("[Minimal_Video_Resolution_Verbose] Modo verbose con estadísticas de resolución inicializado")
 
     def process_frame(self, frame):
@@ -198,11 +198,11 @@ class Minimal_Video_Resolution_Verbose(Minimal_Video_Resolution, minimal_video_f
             start_time = time.time()
             resized_frame = super().process_frame(frame)
             resize_time = time.time() - start_time
-            self._resize_times.append(resize_time)
-            if len(self._resize_times) > self._max_resize_history:
-                self._resize_times.pop(0)
-            self._total_resize_time += resize_time
-            self._resize_count += 1
+            self.resize_times.append(resize_time)
+            if len(self.resize_times) > self.max_resize_history:
+                self.resize_times.pop(0)
+            self.total_resize_time += resize_time
+            self.resize_count += 1
             return resized_frame
         return frame
 
@@ -229,7 +229,7 @@ class Minimal_Video_Resolution_Verbose(Minimal_Video_Resolution, minimal_video_f
                         self.video_received_messages_count += 1
                         fragments_received_this_cycle += 1
 
-                self._fragments_received_this_cycle = fragments_received_this_cycle
+                self.fragments_received_this_cycle = fragments_received_this_cycle
                 self.show_video()
                 self.control_framerate(loop_start)
         except Exception as e:
@@ -238,8 +238,8 @@ class Minimal_Video_Resolution_Verbose(Minimal_Video_Resolution, minimal_video_f
 
     def print_final_averages(self):
         super().print_final_averages()
-        if self.resize_needed and self._resize_count > 0:
-            avg_resize_time = self._total_resize_time / self._resize_count
+        if self.resize_needed and self.resize_count > 0:
+            avg_resize_time = self.total_resize_time / self.resize_count
             print("\n=== Estadísticas de Resolución ===")
             print(f"Resolución objetivo: {self.target_width}x{self.target_height}")
             print(f"Resolución real: {self.capture_width}x{self.capture_height}")
@@ -247,8 +247,8 @@ class Minimal_Video_Resolution_Verbose(Minimal_Video_Resolution, minimal_video_f
             print(f"Impacto en rendimiento:        {avg_resize_time/((1.0/self.fps_target) if self.fps_target else 1)*100:.1f}%")
             print("=================================")
         print("\n=== Resoluciones compatibles de la cámara ===")
-        if self._supported_resolutions:
-            for idx, (width, height) in enumerate(self._supported_resolutions, 1):
+        if self.supported_resolutions:
+            for idx, (width, height) in enumerate(self.supported_resolutions, 1):
                 resolution_str = f"{width}x{height}"
                 if width == self.capture_width and height == self.capture_height:
                     resolution_str += " * SELECCIONADA"
