@@ -79,7 +79,6 @@ class Minimal_Video(minimal.Minimal):
             raise
         self.video_addr = (args.destination_address, args.video_port)
 
-        self.fragments_received = 0
         self._header_format = "!H"
         self.header_size = 2
         self.effective_video_payload_size = args.video_payload_size
