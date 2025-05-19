@@ -1,0 +1,177 @@
+\documentclass[a4paper,11pt]{article}
+% Cargar paquetes y configuraciones
+\input{packages}
+
+\begin{document}
+
+\sinmarcaagua
+
+% Portada
+\begin{titlepage}
+    \pagestyle{titlepage}
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[inner sep=0pt] at (current page.center) {
+            \includegraphics[width=\paperwidth, height=\paperheight]{images/TFG_II_front}
+        };
+    \end{tikzpicture}
+    
+    \centering
+    \vspace*{10cm}
+    \begin{tabular}{p{2.2cm}c}
+        & {\fontsize{22pt}{18pt*1.2}\selectfont
+          \begin{tabular}{c}
+                \textbf{Mejora y Ampliación} \\[8pt] 
+                \textbf{de un Sistema de Comunicación Bidireccional} \\[8pt]
+                \textbf{por Voz y Vídeo}
+          \end{tabular}}
+    \end{tabular}
+    \vfill
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[anchor=south west, inner sep=0pt] at ([xshift=5.3cm, yshift=5.1cm]current page.south west) {
+            \Huge \textbf{Curso 2024/2025}
+        };
+    \end{tikzpicture}
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[anchor=south west, inner sep=0pt] at ([xshift=5.3cm, yshift=2.9cm]current page.south west) {
+            \fontsize{18pt}{20pt}\selectfont Jorge Jesús Sánchez Rivas
+        };
+    \end{tikzpicture}
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[anchor=south west, inner sep=0pt] at ([xshift=15cm, yshift=11mm]current page.south west) {
+            \fontsize{18pt}{20pt}\selectfont Vicente González Ruiz
+        };
+    \end{tikzpicture}
+    \thispagestyle{empty}
+\end{titlepage}
+
+\conmarcaagua
+
+% Página en blanco antes del índice
+\newpage
+\thispagestyle{main}
+\mbox{}
+\newpage
+
+
+% A partir de aquí, se aplica el estilo principal (con logo en encabezado)
+\pagestyle{main}
+
+% Índice general
+\thispagestyle{main}
+\renewcommand{\contentsname}{}
+\section*{Índice}
+{\color{tfgazul}\rule{\textwidth}{3pt}}
+\tableofcontents
+\thispagestyle{main}
+
+% Página en blanco después del índice general
+\newpage
+\thispagestyle{main}
+\mbox{}
+\newpage
+
+% Índice de Figuras
+\thispagestyle{main}
+\renewcommand{\listfigurename}{Índice de figuras}
+% Define lo que va después del título del índice de figuras
+\renewcommand{\cftafterloftitle}{%
+  \par\nobreak
+  {\color{tfgazul}\rule{\textwidth}{3pt}}%
+  \par\nobreak
+}
+\listoffigures
+\thispagestyle{main}
+
+% Página en blanco después del índice de figuras
+\newpage
+\thispagestyle{main}
+\mbox{}
+\newpage
+
+% Índice de Tablas
+\thispagestyle{main}
+\renewcommand{\listtablename}{Índice de tablas}
+\renewcommand{\cftafterlottitle}{%  % Aquí está el cambio: lottitle en lugar de loftitle
+  \par\nobreak
+  {\color{tfgazul}\rule{\textwidth}{3pt}}%
+  \par\nobreak
+}
+\listoftables
+\thispagestyle{main}
+
+% Página en blanco después del índice de tablas
+\newpage
+\thispagestyle{main}
+\mbox{}
+\newpage
+
+% Índice de Código
+\thispagestyle{main}
+\renewcommand{\lstlistlistingname}{Índice de código}
+% Mostrar el título
+\section*{\lstlistlistingname}
+% Insertar la línea azul después del título
+{\color{tfgazul}\rule{\textwidth}{3pt}}
+
+% Mostrar el contenido del índice sin el título (que ya lo pusimos manualmente)
+\begingroup
+\renewcommand{\lstlistlistingname}{}
+\lstlistoflistings
+\endgroup
+\thispagestyle{main}
+
+% Página en blanco después del índice de tablas
+\newpage
+\thispagestyle{main}
+\mbox{}
+\newpage
+
+% Contenido principal
+\section{Introducción}
+{\color{tfgazul}\rule{\textwidth}{3pt}}
+\input{introduccion}
+
+\newpage
+\section{Metodología}
+{\color{tfgazul}\rule{\textwidth}{3pt}}
+\input{metodologia}
+
+\newpage
+\section{Resultados y discusión}
+{\color{tfgazul}\rule{\textwidth}{3pt}}
+\input{resultados_y_discusion}
+
+\newpage
+\section{Conclusión}
+{\color{tfgazul}\rule{\textwidth}{3pt}}
+\input{conclusion}
+
+\newpage
+\section{Bibliografía}
+{\color{tfgazul}\rule{\textwidth}{3pt}}
+
+% Bibliografía
+\bibliographystyle{ieeetr}
+\renewcommand{\refname}{} 
+\bibliography{referencias}
+
+
+\sinmarcaagua
+
+\newpage
+\begin{titlepage}
+    \pagestyle{titlepage}
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[inner sep=0pt] at (current page.center) {
+            \includegraphics[width=\paperwidth, height=\paperheight]{images/TFG_II_back}
+        };
+    \end{tikzpicture}
+    \begin{tikzpicture}[remember picture, overlay]
+         \node[anchor=south east, inner sep=0pt] at ([xshift=-1.5cm, yshift=1.1cm]current page.south east) {
+            \fontsize{16pt}{16pt}\selectfont \textbf{GRADO EN INGENIERÍA INFORMÁTICA  2024/2025}
+         };
+     \end{tikzpicture}
+    \thispagestyle{empty}
+\end{titlepage}
+
+\end{document}
