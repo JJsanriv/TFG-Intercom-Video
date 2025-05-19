@@ -18,7 +18,6 @@ import subprocess
 import re
 import os
 
-# Argumento para añdir el dispositivo de la cámara
 minimal_video.parser.add_argument('--camera_device', type=str, default='/dev/video0', help='Dispositivo de cámara (ej: /dev/video0)')
 
 
