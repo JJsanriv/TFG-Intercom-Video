@@ -55,24 +55,24 @@ class Minimal_Video_FPS(minimal_video.Minimal_Video):
 class Minimal_Video_FPS_Verbose(Minimal_Video_FPS, minimal_video.Minimal_Video__verbose):
 
     def __init__(self):
-        self._fps_real = 0
-        self._frame_times = [] # List to store frame times
-        self._max_frame_history = 30 # Number of frames to average
-        self._last_frame_time = time.time() 
+        self.fps_real = 0
+        self.frame_times = [] # List to store frame times
+        self.max_frame_history = 30 # Number of frames to average
+        self.last_frame_time = time.time() 
         super().__init__()
         print("[Minimal_Video_FPS_Verbose] Modo verbose con estadísticas de FPS inicializado")
     
     def control_framerate(self, start_time):
         now = time.time()
-        frame_duration = now - self._last_frame_time
-        self._last_frame_time = now
+        frame_duration = now - self.last_frame_time
+        self.last_frame_time = now
 
-        self._frame_times.append(frame_duration)
-        if len(self._frame_times) > self._max_frame_history: # Limit the history size
-            self._frame_times.pop(0) # Remove the oldest frame time
-        if self._frame_times:
-            avg_frame_time = sum(self._frame_times) / len(self._frame_times) # Average frame time
-            self._fps_real = 1.0 / avg_frame_time if avg_frame_time > 0 else 0 # Calculate FPS
+        self.frame_times.append(frame_duration)
+        if len(self.frame_times) > self.max_frame_history: # Limit the history size
+            self.frame_times.pop(0) # Remove the oldest frame time
+        if self.frame_times:
+            avg_frame_time = sum(self.frame_times) / len(self.frame_times) # Average frame time
+            self.fps_real = 1.0 / avg_frame_time if avg_frame_time > 0 else 0 # Calculate FPS
         Minimal_Video_FPS.control_framerate(self, start_time)
 
     def video_loop(self):
@@ -103,8 +103,8 @@ class Minimal_Video_FPS_Verbose(Minimal_Video_FPS, minimal_video.Minimal_Video__
     def print_final_averages(self):
         if hasattr(minimal_video.Minimal_Video__verbose, 'print_final_averages'):
             minimal_video.Minimal_Video__verbose.print_final_averages(self)
-        if hasattr(self, '_frame_times') and self._frame_times:
-            avg_frame_time = sum(self._frame_times) / len(self._frame_times)
+        if hasattr(self, 'frame_times') and self.frame_times:
+            avg_frame_time = sum(self.frame_times) / len(self.frame_times)
             fps_real_avg = 1.0 / avg_frame_time if avg_frame_time > 0 else 0
             print("\n=== Estadísticas de FPS ===")
             print(f"FPS objetivo:     {self.fps_target:.1f}")
