@@ -79,9 +79,7 @@ class Minimal_Video(minimal.Minimal):
             raise
         self.video_addr = (args.destination_address, args.video_port)
 
-        self.current_frame_fragments = None
         self.fragments_received = 0
-
         self._header_format = "!H"
         self.header_size = 2
         self.effective_video_payload_size = args.video_payload_size
@@ -94,7 +92,6 @@ class Minimal_Video(minimal.Minimal):
         self.width = 0
         self.height = 0
         self.fps = 0
-        self.latest_captured_frame = None
 
         self.expected_frame_size = 0
         self.total_frags = 0
@@ -127,12 +124,7 @@ class Minimal_Video(minimal.Minimal):
                 self.fragment_headers.append(struct.pack(self._header_format, frag_idx))
 
             self.remote_frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
-            self.received_remote_frame = False
-
-            if not hasattr(self, 'temp_frame_buffer') or self.temp_frame_buffer.shape != (self.height, self.width, 3):
-                self.temp_frame_buffer = np.zeros((self.height, self.width, 3), dtype=np.uint8)
             
-
         except Exception as e:
             print(f"Error al inicializar la cámara: {e}. Deshabilitando video.")
             if self.cap:
@@ -142,7 +134,7 @@ class Minimal_Video(minimal.Minimal):
         self.running = True
 
     def capture_image(self):
-        ret, frame = self.cap.read()
+        _, frame = self.cap.read()
         return frame.tobytes()
 
     def send_video_fragment(self, frag_idx, data):
@@ -192,25 +184,25 @@ class Minimal_Video(minimal.Minimal):
             super().run()
             return
 
-        if self.cap is not None:
-            print("Iniciando video con bucle unificado y protocolo simplificado...")
+        print("Iniciando video con bucle unificado y protocolo simplificado...")
 
-            t_unified = threading.Thread(target=self.video_loop, daemon=True, name="UnifiedVideoThread")
-            t_unified.start()
+        t_unified = threading.Thread(target=self.video_loop, daemon=True, name="UnifiedVideoThread")
+        t_unified.start()
 
-            try:
-                super().run()
-            except KeyboardInterrupt:
-                print("Interrupción por teclado detectada.")
-            finally:
-                print("Deteniendo aplicación de video...")
-                self.running = False
-                if hasattr(self, 'cap') and self.cap.isOpened():
-                    self.cap.release()
-                cv2.destroyAllWindows()
-                if hasattr(self, 'video_sock') and self.video_sock:
-                    self.video_sock.close()
-                print("Aplicación de video detenida.")
+        try:
+            super().run()
+        except KeyboardInterrupt:
+            print("Interrupción por teclado detectada.")
+        finally:
+            self.running = False
+            if t_unified.is_alive():
+                t_unified.join(timeout=1)
+            if hasattr(self, 'cap') and self.cap.isOpened():
+                self.cap.release()
+            cv2.destroyAllWindows()
+            if hasattr(self, 'video_sock') and self.video_sock:
+                self.video_sock.close()
+            print("Aplicación de video detenida.")
 
 class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
     def __init__(self):
@@ -408,10 +400,7 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
     def run(self):
         if not args.show_video or not hasattr(self, 'cap') or self.cap is None:
             print("Video desactivado. Ejecutando solo la parte de audio en modo verbose.")
-            if hasattr(minimal, 'Minimal__verbose'):
-                super(Minimal_Video, self).run()
-            else:
-                super().run()
+            minimal.Minimal__verbose.run(self)
             return
 
         if not hasattr(self, 'loop_cycle_feedback'):
@@ -419,35 +408,33 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
             super().run()
             return
 
-        if self.cap is not None:
-            print("Iniciando video con bucle unificado y protocolo simplificado (verbose)...")
-            print("Presiona Enter para terminar\n")
-            self.print_header()
+        print("Iniciando video con bucle unificado y protocolo simplificado (verbose)...")
+        print("Presiona Ctrl+C para terminar\n")
+        self.print_header()
 
-            cycle_feedback_thread = threading.Thread(target=self.loop_cycle_feedback, daemon=True, name="FeedbackThread")
-            cycle_feedback_thread.start()
+        cycle_feedback_thread = threading.Thread(target=self.loop_cycle_feedback, daemon=True, name="FeedbackThread")
+        cycle_feedback_thread.start()
 
-            t_unified = threading.Thread(target=self.video_loop, daemon=True, name="UnifiedVideoThread")
-            t_unified.start()
+        t_unified = threading.Thread(target=self.video_loop, daemon=True, name="UnifiedVideoThread")
+        t_unified.start()
 
-            try:
-                with self.stream(self._handler):
-                    if self.end_time:
-                        self.time_event.wait(timeout=getattr(args, "reading_time", 0) + 0.5)
-                    else:
-                        input()
-            except KeyboardInterrupt:
-                self.running = False
-                cycle_feedback_thread.join()
-                print("Interrupción por teclado detectada.")
-            finally:
-                print("Deteniendo aplicación de video...")
-                if self.cap and self.cap.isOpened():
-                    self.cap.release()
-                cv2.destroyAllWindows()
-                if hasattr(self, 'video_sock') and self.video_sock:
-                    self.video_sock.close()
-                print("Aplicación de video detenida.")
+        try:
+            minimal.Minimal__verbose.run(self)
+        except KeyboardInterrupt:
+            print("Interrupción por teclado detectada.")
+        finally:
+            self.running = False
+            # Intenta terminar hilos rápido y no bloquees el cierre
+            if cycle_feedback_thread.is_alive():
+                cycle_feedback_thread.join(timeout=1)
+            if t_unified.is_alive():
+                t_unified.join(timeout=1)
+            if self.cap and self.cap.isOpened():
+                self.cap.release()
+            cv2.destroyAllWindows()
+            if hasattr(self, 'video_sock') and self.video_sock:
+                self.video_sock.close()
+            print("Aplicación de video detenida.")
 
 if __name__ == "__main__":
     try:

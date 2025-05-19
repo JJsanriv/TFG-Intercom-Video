@@ -28,7 +28,7 @@ class Minimal_Video_FPS(minimal_video.Minimal_Video):
                 self.fps_target = args.fps
                 print(f"[Minimal_Video_FPS] FPS objetivo para control de bucle: {self.fps_target}")
     
-    def _control_framerate(self, start_time):
+    def control_framerate(self, start_time):
 
         if self.fps_target:
             elapsed = time.time() - start_time
@@ -47,7 +47,7 @@ class Minimal_Video_FPS(minimal_video.Minimal_Video):
                     self.send_video_fragment(frag_idx, data)
                     self.receive_video_fragment()
                 self.show_video()
-                self._control_framerate(loop_start)
+                self.control_framerate(loop_start)
         except Exception as e:
             print(f"[Minimal_Video_FPS] Error en el bucle de video: {e}")
             pass
@@ -59,11 +59,10 @@ class Minimal_Video_FPS_Verbose(Minimal_Video_FPS, minimal_video.Minimal_Video__
         self._frame_times = [] # List to store frame times
         self._max_frame_history = 30 # Number of frames to average
         self._last_frame_time = time.time() 
-        Minimal_Video_FPS.__init__(self)
-        minimal_video.Minimal_Video__verbose.__init__(self)
+        super().__init__()
         print("[Minimal_Video_FPS_Verbose] Modo verbose con estadísticas de FPS inicializado")
     
-    def _control_framerate(self, start_time):
+    def control_framerate(self, start_time):
         now = time.time()
         frame_duration = now - self._last_frame_time
         self._last_frame_time = now
@@ -74,11 +73,33 @@ class Minimal_Video_FPS_Verbose(Minimal_Video_FPS, minimal_video.Minimal_Video__
         if self._frame_times:
             avg_frame_time = sum(self._frame_times) / len(self._frame_times) # Average frame time
             self._fps_real = 1.0 / avg_frame_time if avg_frame_time > 0 else 0 # Calculate FPS
-        Minimal_Video_FPS._control_framerate(self, start_time)
+        Minimal_Video_FPS.control_framerate(self, start_time)
 
     def video_loop(self):
-        Minimal_Video_FPS.video_loop(self)
-        
+        try:
+            while self.running:
+                loop_start = time.time()
+                data = self.capture_image()
+                fragments_received_this_cycle = 0
+
+                for frag_idx in range(self.total_frags):
+                    sent_len = self.send_video_fragment(frag_idx, data)
+                    self.video_sent_bytes_count += sent_len
+                    self.video_sent_messages_count += 1
+
+                    recv_idx, recv_len = self.receive_video_fragment()
+                    if recv_len:
+                        self.video_received_bytes_count += recv_len
+                        self.video_received_messages_count += 1
+                        fragments_received_this_cycle += 1
+
+                self._fragments_received_this_cycle = fragments_received_this_cycle
+                self.show_video()
+                self.control_framerate(loop_start)
+        except Exception as e:
+            print(f"[Minimal_Video_FPS] Error en el bucle de video: {e}")
+            pass
+
     def print_final_averages(self):
         if hasattr(minimal_video.Minimal_Video__verbose, 'print_final_averages'):
             minimal_video.Minimal_Video__verbose.print_final_averages(self)
@@ -112,7 +133,7 @@ if __name__ == "__main__":
     else:
         print("Iniciando en modo FPS estándar...")
         intercom_app = Minimal_Video_FPS()
-    
+
     try:
         intercom_app.run()
     except KeyboardInterrupt:
