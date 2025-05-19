@@ -424,7 +424,6 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
             print("Interrupción por teclado detectada.")
         finally:
             self.running = False
-            # Intenta terminar hilos rápido y no bloquees el cierre
             if cycle_feedback_thread.is_alive():
                 cycle_feedback_thread.join(timeout=1)
             if t_unified.is_alive():
