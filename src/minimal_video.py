@@ -13,7 +13,7 @@ Header (big-endian): FragIdx(H) – Only the fragment position is transmitted.
 New parameters:
     --video_payload_size : Desired size (bytes) of video/UDP fragment payload (default 1400).
     --width : Video width (default 320).
-    --height : Video height (default 180).
+    --height : Video height (default 240).
     --fps : Video frames per second (default 30).
     --show_video : Enables video display and transmission (disabled by default).
     --listening_video_port : Port to listen for video (default 4445).
@@ -47,8 +47,8 @@ parser = minimal.parser
 
 parser.add_argument("-v", "--video_payload_size", type=int, default=1400,
                     help="Tamaño deseado (bytes) payload video/fragmento UDP (defecto 1400).")
-parser.add_argument("-w", "--width", type=int, default=320, help="Ancho video (defecto 640)")
-parser.add_argument("-g", "--height", type=int, default=240, help="Alto video (defecto 360)")
+parser.add_argument("-w", "--width", type=int, default=320, help="Ancho video (defecto 320)")
+parser.add_argument("-g", "--height", type=int, default=240, help="Alto video (defecto 240)")
 parser.add_argument("-z", "--fps", type=int, default=30, help="Frames por segundo video (defecto 30)")
 parser.add_argument("--show_video", action="store_true", default=False,
                     help="Habilita la visualización y transmisión del video (desactivado por defecto).")
