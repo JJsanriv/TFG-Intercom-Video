@@ -7,16 +7,18 @@ Minimal_Video: Extends minimal.py to add video transmission/display without comp
     - The --show_video flag enables video display and transmission. By default, it is disabled.
     - Without --show_video, it behaves exactly like minimal.py (audio only).
 
-A UDP socket is used for transmission, and frames are fragmented. 
+A UDP socket is used for transmission, and frames are fragmented.
 Header (big-endian): FragIdx(H) – Only the fragment position is transmitted.
 
-New parameters: 
-    --video_payload_size : Desired size (bytes) of video/UDP fragment payload (default 1400). 
-    --width : Video width (default 320). 
-    --height : Video height (default 180). 
-    --fps : Video frames per second (default 30). 
-    --show_video : Enables video display and transmission (disabled by default). 
-    --video_port : Port to transmit/receive video (default 4445).
+New parameters:
+    --video_payload_size : Desired size (bytes) of video/UDP fragment payload (default 1400).
+    --width : Video width (default 320).
+    --height : Video height (default 180).
+    --fps : Video frames per second (default 30).
+    --show_video : Enables video display and transmission (disabled by default).
+    --listening_video_port : Port to listen for video (default 4445).
+    --destination_video_port : Port to send video to (default 4445).
+    --camera_index : Index of the camera to use (default 0).
 """
 
 import cv2
@@ -45,13 +47,18 @@ parser = minimal.parser
 
 parser.add_argument("-v", "--video_payload_size", type=int, default=1400,
                     help="Tamaño deseado (bytes) payload video/fragmento UDP (defecto 1400).")
-parser.add_argument("-w", "--width", type=int, default=320, help="Ancho video (defecto 320)")
-parser.add_argument("-g", "--height", type=int, default=240, help="Alto video (defecto 240)")
+parser.add_argument("-w", "--width", type=int, default=320, help="Ancho video (defecto 640)")
+parser.add_argument("-g", "--height", type=int, default=240, help="Alto video (defecto 360)")
 parser.add_argument("-z", "--fps", type=int, default=30, help="Frames por segundo video (defecto 30)")
 parser.add_argument("--show_video", action="store_true", default=False,
                     help="Habilita la visualización y transmisión del video (desactivado por defecto).")
-parser.add_argument("--video_port", type=int, default=4445,
-                    help="Puerto para transmitir/recibir video (defecto 4445).")
+parser.add_argument("-lvp", "--listening_video_port", type=int, default=4445,
+                    help="Puerto en el que se escucha para recibir video (defecto 4445).")
+parser.add_argument("-dvp", "--destination_video_port", type=int, default=4445,
+                    help="Puerto al que se envía el video (defecto 4445).")
+parser.add_argument("--camera_index", type=int, default=0,
+                    help="Índice de la cámara a utilizar (defecto 0).")
+
 
 args = None
 
@@ -73,11 +80,11 @@ class Minimal_Video(minimal.Minimal):
         self.video_sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 8388608)
         self.video_sock.setblocking(False)
         try:
-            self.video_sock.bind(("0.0.0.0", args.video_port))
+            self.video_sock.bind(("0.0.0.0", args.listening_video_port))
         except OSError as e:
             print(f"Error bind socket video: {e}")
             raise
-        self.video_addr = (args.destination_address, args.video_port)
+        self.video_addr = (args.destination_address, args.destination_video_port)
 
         self._header_format = "!H"
         self.header_size = 2
@@ -95,11 +102,11 @@ class Minimal_Video(minimal.Minimal):
         self.expected_frame_size = 0
         self.total_frags = 0
 
-        print("Flag --show_video detectado. Intentando inicializar la cámara...")
+        print(f"Flag --show_video detectado. Intentando inicializar la cámara con índice {args.camera_index}...")
         try:
-            self.cap = cv2.VideoCapture(0)
+            self.cap = cv2.VideoCapture(args.camera_index)
             if not self.cap.isOpened():
-                raise IOError("No se pudo abrir la cámara.")
+                raise IOError(f"No se pudo abrir la cámara con índice {args.camera_index}.")
             if args.width > 0:
                 self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
             if args.height > 0:
@@ -123,7 +130,7 @@ class Minimal_Video(minimal.Minimal):
                 self.fragment_headers.append(struct.pack(self._header_format, frag_idx))
 
             self.remote_frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
-            
+
         except Exception as e:
             print(f"Error al inicializar la cámara: {e}. Deshabilitando video.")
             if self.cap:
@@ -162,7 +169,7 @@ class Minimal_Video(minimal.Minimal):
         return None, 0
 
     def show_video(self):
-        cv2.imshow("Video", self.remote_frame)
+        cv2.imshow(f"Video (Cam {args.camera_index})", self.remote_frame) # Título de ventana modificado
         cv2.waitKey(1)
 
     def video_loop(self):
@@ -392,9 +399,10 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
 
                 self._fragments_received_this_cycle = fragments_received_this_cycle
                 self.show_video()
-        except Exception:
-            print(f"Error en el bucle de video: {e}")
+        except Exception as e: # Captura más genérica para errores en el bucle
+            print(f"Error en el bucle de video (verbose): {e}")
             pass
+
 
     def run(self):
         if not args.show_video or not hasattr(self, 'cap') or self.cap is None:
@@ -404,7 +412,7 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
 
         if not hasattr(self, 'loop_cycle_feedback'):
             print("Advertencia: El bucle de feedback de estadísticas no está disponible. Ejecutando sin estadísticas.")
-            super().run()
+            super().run() # Llama al run de Minimal_Video
             return
 
         print("Iniciando video con bucle unificado y protocolo simplificado (verbose)...")
@@ -418,7 +426,7 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
         t_unified.start()
 
         try:
-            minimal.Minimal__verbose.run(self)
+            minimal.Minimal__verbose.run(self) # Ejecuta el run de la clase base de audio verbose
         except KeyboardInterrupt:
             print("Interrupción por teclado detectada.")
         finally:
@@ -468,6 +476,6 @@ if __name__ == "__main__":
         traceback.print_exc()
     finally:
         if hasattr(intercom_app, 'print_final_averages') and callable(intercom_app.print_final_averages):
-            time.sleep(0.2)
+            time.sleep(0.2) # Pequeña pausa para asegurar que las estadísticas se impriman correctamente
             intercom_app.print_final_averages()
         print("Programa terminado.")
