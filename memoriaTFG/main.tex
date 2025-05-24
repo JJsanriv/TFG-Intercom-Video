@@ -166,12 +166,20 @@
             \includegraphics[width=\paperwidth, height=\paperheight]{images/TFG_II_back}
         };
     \end{tikzpicture}
+    
+    % Título del grado en la parte inferior
     \begin{tikzpicture}[remember picture, overlay]
          \node[anchor=south east, inner sep=0pt] at ([xshift=-1.5cm, yshift=1.1cm]current page.south east) {
             \fontsize{16pt}{16pt}\selectfont \textbf{GRADO EN INGENIERÍA INFORMÁTICA  2024/2025}
          };
      \end{tikzpicture}
+     
+     % Resumen en el centro de la página
+     \begin{tikzpicture}[remember picture, overlay]
+         \node[anchor=center, inner sep=0pt, text width=0.6\paperwidth] at ([xshift=2.5cm, yshift=4cm]current page.center) {
+            \input{resumencontraportada}
+         };
+     \end{tikzpicture}
     \thispagestyle{empty}
 \end{titlepage}
-
 \end{document}

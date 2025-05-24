@@ -93,7 +93,9 @@ parser.add_argument("-w", "--width", type=int, default=320, help="Ancho video (d
 parser.add_argument("-g", "--height", type=int, default=240, help="Alto video (defecto 240)")
 parser.add_argument("-z", "--fps", type=int, default=30, help="Frames por segundo video (defecto 30)")
 parser.add_argument("--show_video", action="store_true", default=False, help="Habilita la visualizacion y transmision del video (desactivado por defecto).")
-parser.add_argument("--video_port", type=int, default=4445, help="Puerto para transmitir/recibir video (defecto 4445).")
+parser.add_argument("-lvp", "--listening_video_port", type=int, default=4445, help="Puerto en el que se escucha para recibir video (defecto 4445).")
+parser.add_argument("-dvp", "--destination_video_port", type=int, default=4445, help="Puerto al que se envia el video (defecto 4445).")
+parser.add_argument("--camera_index", type=int, default=0, help="Indice de la camara a utilizar (defecto 0).")
 
 args = None
 \end{lstlisting}
@@ -107,8 +109,8 @@ A continuación, se encuentra la explicación del bloque de código \ref{lst:pri
     \item \textbf{Línea 16:} se define el objeto \textit{spinner} que se usará para mostrar un cursor giratorio en la línea de comandos mientras se espera la entrada del usuario.
     \item \textbf{Líneas 18-22:} se define la función \textit{int\_or\_str()} que intenta convertir un texto en un entero. Si no puede, devuelve el texto original. Esta función se usará para procesar argumentos de línea de comandos.
     \item \textbf{Líneas 24-26:} se verifica si el módulo \textit{minimal} tiene un atributo llamado \textit{parser}. Si no lo tiene, se crea un nuevo objeto \textit{ArgumentParser} para procesar los argumentos de línea de comandos. Este objeto se usará para definir y gestionar los argumentos que se pasan al script.
-    \item \textbf{Línea 28-33:} se definen varios argumentos de línea de comandos que se pueden usar al ejecutar el script. Estos argumentos permiten al usuario personalizar el comportamiento del programa, como el tamaño del payload de video, las dimensiones del video, los frames por segundo, la habilitación de la visualización del video y el puerto para la transmisión y recepción de video.
-    \item \textbf{Línea 35:} se inicializa la variable \textit{args} como \textit{None}. Esta variable se usará para almacenar los argumentos procesados por el parser.
+    \item \textbf{Línea 28-35:} se definen varios argumentos de línea de comandos que se pueden usar al ejecutar el script. Estos argumentos permiten al usuario personalizar el comportamiento del programa, como el tamaño del payload de video, las dimensiones del video, los frames por segundo, la habilitación de la visualización del video y los puertos de escucha y destino para la transmisión de video asi como el índice que usa la cámara. Cada argumento tiene un tipo, un valor por defecto y una descripción.
+    \item \textbf{Línea 37:} se inicializa la variable \textit{args} como \textit{None}. Esta variable se usará para almacenar los argumentos procesados por el parser.
 \end{itemize}
 
 \vspace{\baselineskip}
@@ -134,11 +136,11 @@ class Minimal_Video(minimal.Minimal):
         self.video_sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 8388608)
         self.video_sock.setblocking(False)
         try:
-            self.video_sock.bind(("0.0.0.0", args.video_port))
+            self.video_sock.bind(("0.0.0.0", args.listening_video_port))
         except OSError as e:
             print(f"Error bind socket video: {e}")
             raise
-        self.video_addr = (args.destination_address, args.video_port)
+        self.video_addr = (args.destination_address, args.destination_video_port)
 
         self._header_format = "!H"
         self.header_size = 2
@@ -168,8 +170,8 @@ A continuación, se encuentra la explicación del bloque de código \ref{lst:ini
     \item \textbf{Línea 13:} se crea un socket UDP para la transmisión de video. socket.AF\_INET indica que se usará IPv4 y socket.SOCK\_DGRAM indica que se usará UDP.
     \item \textbf{Líneas 14-16:} se configuran opciones del socket para permitir la reutilización de la dirección IP y puertos usados\footnote{La reutilización de la dirección sirve para que no nos muestre el error ``Address already in use'' al ejecutar el programa varias veces seguidas.} y aumentar el tamaño del buffer de recepción y envío a 8MB\footnote{Permite mayor flexibilidad al manejar mayor cantidad de datos de vídeo sin pérdidas cuando hay picos en la recepción.}.
     \item \textbf{Línea 17:} se establece el socket como no bloqueante, lo que significa que las operaciones de lectura y escritura no bloquearán el socket de video si no hay datos disponibles.\footnote{Permite que el programa continúe ejecutándose mientras maneja la comunicación de vídeo sin quedar bloqueado. Esencial para aplicaciones en tiempo real, en concreto la nuestra.}
-    \item \textbf{Líneas 18-22:} se configura el socket para escuchar conexiones entrantes en todas las interfaces de red (dirección IP ``0.0.0.0'') en el puerto especificado por el argumento video\_port.\footnote{ Si la operación falla (por ejemplo, porque el puerto ya está en uso), captura el error OSError, muestra un mensaje descriptivo y lanza la excepción para terminar la ejecución del programa.}
-    \item \textbf{Línea 23:} se inicializa la variable \textit{video\_addr} con la dirección IP de destino y el puerto de video.
+    \item \textbf{Líneas 18-22:} se configura el socket para escuchar conexiones entrantes en todas las interfaces de red (dirección IP ``0.0.0.0'') en el puerto especificado por el argumento listening\_video\_port.\footnote{ Si la operación falla (por ejemplo, porque el puerto ya está en uso), captura el error OSError, muestra un mensaje descriptivo y lanza la excepción para terminar la ejecución del programa.}
+    \item \textbf{Línea 23:} se inicializa la variable \textit{video\_addr} con la dirección IP de destino y el puerto de video de destino.
     \item \textbf{Línea 25-26:} se define el formato del encabezado del paquete de video como un entero sin signo de 16 bits (2 bytes) usando el formato de la librería struct. 
     \item \textbf{Líneas 27-31:} Primero asigna el valor proporcionado por el usuario (\textit{args.video\_payload\_size}) a \textit{self.effective\_video\_payload\_size}. Luego, se calcula el máximo payload posible restando el tamaño de la cabecera (\textit{self.header\_size}) del tamaño deseado. Procede a ajustar \textit{self.effective\_video\_payload\_size} para que esté entre 1 y el máximo payload posible calculado. Por ultimo, si el valor final es diferente del solicitado por el usuario, muestra un mensaje de aviso indicando que se ha ajustado automáticamente.\footnote{Este trozo de código garantiza que el tamaño del payload sea válido para la transmisión de video, evitando valores demasiado pequeños o muy grandes que superen el límite permitido por el tamaño de la cabecera.}
     \item \textbf{Líneas 33-36:} se inicializan varias variables relacionadas con la captura de video. \textit{self.cap} se usará para almacenar el objeto de captura de video, \textit{self.width} y \textit{self.height} almacenan las dimensiones del video, \textit{self.fps} almacena los frames por segundo.
@@ -181,11 +183,11 @@ A continuación, se encuentra la explicación del bloque de código \ref{lst:ini
 Terminamos la funcion \textit{\_init\_} de la forma que se observa en el bloque de código \ref{lst:fin_ini_minimal_video}
 \vspace{\baselineskip}
 \begin{lstlisting}[style=pythonstyle, caption={Fin de la inicialización de Minimal\_Video}, label={lst:fin_ini_minimal_video}]
-print("Flag --show_video detectado. Intentando inicializar la camara...")
+print(f"Flag --show_video detectado. Intentando inicializar la camara con indice {args.camera_index}...")
         try:
-            self.cap = cv2.VideoCapture(0)
+            self.cap = cv2.VideoCapture(args.camera_index)
             if not self.cap.isOpened():
-                raise IOError("No se pudo abrir la camara.")
+                raise IOError(f"No se pudo abrir la camara con indice {args.camera_index}.")
             if args.width > 0:
                 self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
             if args.height > 0:
@@ -220,8 +222,8 @@ print("Flag --show_video detectado. Intentando inicializar la camara...")
 \end{lstlisting}
 
 \begin{itemize}
-    \item \textbf{Línea 1:} se imprime un mensaje indicando que se ha detectado la opción \textit{--show\_video} y que se intentará inicializar la cámara.\footnote{Evidentemente el usaurio tiene que tener la cámara conectada y activada.}
-    \item \textbf{Líneas 2-5:} se intenta inicializar la cámara usando \textit{cv2.VideoCapture(0)}. Si no se puede abrir, lanza una excepción con un mensaje de error.
+    \item \textbf{Línea 1:} se imprime un mensaje indicando que se ha detectado la opción \textit{--show\_video} y que se intentará inicializar la cámara con el indice de la misma.\footnote{Evidentemente el usaurio tiene que tener la cámara conectada y activada.}
+    \item \textbf{Líneas 2-5:} se intenta inicializar la cámara usando la función de OpenCV \textit{VideoCapture()} con el índice de la cámara proporcionado por el usuario. Si no se puede abrir la cámara, se lanza una excepción \textit{IOError} y se imprime un mensaje de error. Esto garantiza que el programa no intente usar la cámara si no está disponible.
     \item \textbf{Líneas 6-11:} se configuran las propiedades de la cámara (ancho, alto y FPS) según los argumentos proporcionados por el usuario. Si los valores son mayores que 0, se aplican.
     \item \textbf{Línea 12:} se establece el tamaño del buffer de la cámara a 2 fotogramas, lo que ayuda a reducir la latencia en la captura de video.\footnote{El tamaño del buffer se refiere a la cantidad de fotogramas que se almacenan temporalmente antes de ser procesados. Un tamaño de buffer más pequeño puede reducir la latencia, pero también puede aumentar el riesgo de pérdida de fotogramas si la cámara no puede enviar datos lo suficientemente rápido.}
     \item \textbf{Líneas 13-15:} se obtienen las dimensiones del video (ancho, alto y FPS) y se almacenan en las variables correspondientes.
@@ -312,7 +314,7 @@ A continuación, se explican las líneas de código que se muestran en el bloque
 Seguidamente, continuamos explicando el método \textit{show\_video()} que es el que se encargará de mostrar el video en una ventana utilizando \textit{OpenCV}:
 \begin{lstlisting}[style=pythonstyle, caption={Método show\_video() de \textit{Minimal\_Video}}, label={lst:show_video}]
     def show_video(self):
-        cv2.imshow("Video", self.remote_frame)
+        cv2.imshow("Video (Cam {args.camera_index})", self.remote_frame)
         cv2.waitKey(1)
 \end{lstlisting}
 
