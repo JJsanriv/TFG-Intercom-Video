@@ -18,8 +18,7 @@ import subprocess
 import re
 import os
 
-minimal_video.parser.add_argument('--camera_device', type=str, default='/dev/video0', help='Dispositivo de cámara (ej: /dev/video0)')
-
+minimal_video.parser.add_argument('--camera_device', type=str, default='/dev/video0', help='Camera device (e.g.: /dev/video0)')
 
 class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
     def __init__(self):
@@ -40,10 +39,10 @@ class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
 
             self.find_closest_resolution()
 
-            print(f"[Minimal_Video_Resolution] Resolución objetivo: {self.target_width}x{self.target_height}")
-            print(f"[Minimal_Video_Resolution] Resolución captura: {self.capture_width}x{self.capture_height}")
+            print(f"[Minimal_Video_Resolution] Target resolution: {self.target_width}x{self.target_height}")
+            print(f"[Minimal_Video_Resolution] Capture resolution: {self.capture_width}x{self.capture_height}")
             if self.resize_needed:
-                print("[Minimal_Video_Resolution] Se aplicará reescalado de imagen")
+                print("[Minimal_Video_Resolution] Image rescaling will be applied")
 
     def get_supported_resolutions(self):
         supported_resolutions = []
@@ -53,11 +52,11 @@ class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
             try:
                 subprocess.run(['which', 'v4l2-ctl'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             except (subprocess.CalledProcessError, FileNotFoundError):
-                print("[Minimal_Video_Resolution] v4l2-ctl no encontrado, usando resoluciones estándar")
+                print("[Minimal_Video_Resolution] v4l2-ctl not found, using standard resolutions")
                 return self.get_standard_resolutions()
                 
             if not os.path.exists(camera_device):
-                print(f"[Minimal_Video_Resolution] Dispositivo {camera_device} no encontrado, usando resoluciones estándar")
+                print(f"[Minimal_Video_Resolution] Device {camera_device} not found, using standard resolutions")
                 return self.get_standard_resolutions()
             
             
@@ -65,7 +64,7 @@ class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
             result = subprocess.run(cmd, capture_output=True, text=True)
             
             if result.returncode != 0:
-                print("[Minimal_Video_Resolution] Error al obtener formatos de cámara, usando resoluciones estándar")
+                print("[Minimal_Video_Resolution] Error getting camera formats, using standard resolutions")
                 return self.get_standard_resolutions()
             
             # It analyzes the output of v4l2-ctl to extract supported resolutions
@@ -79,11 +78,11 @@ class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
                     supported_resolutions.append((width, height))
             supported_resolutions.sort(key=lambda res: res[0] * res[1])
             if not supported_resolutions:
-                print("[Minimal_Video_Resolution] No se detectaron resoluciones, usando estándar")
+                print("[Minimal_Video_Resolution] No resolutions detected, using standard")
                 return self.get_standard_resolutions()
             return supported_resolutions
         except Exception as e:
-            print(f"[Minimal_Video_Resolution] Error al consultar resoluciones: {e}")
+            print(f"[Minimal_Video_Resolution] Error querying resolutions: {e}")
             return self.get_standard_resolutions()
 
     def get_standard_resolutions(self):
@@ -103,11 +102,11 @@ class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
             (2560, 1440),  # QHD
             (3840, 2160)   # 4K UHD
         ]
-        print("[Minimal_Video_Resolution] Usando lista de resoluciones estándar")
+        print("[Minimal_Video_Resolution] Using standard resolutions list")
         return standard_resolutions
 
     def find_closest_resolution(self):
-    
+        
         if not hasattr(self, 'cap') or self.cap is None:
             return
 
@@ -118,7 +117,7 @@ class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
         self.capture_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
         self.resize_needed = (self.capture_width != self.target_width or 
-                              self.capture_height != self.target_height)
+                            self.capture_height != self.target_height)
 
         # If the requested resolution is not available, find the closest higher one
         if self.capture_width < self.target_width or self.capture_height < self.target_height:
@@ -130,14 +129,14 @@ class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
                     break
             if closest_resolution:
                 res_width, res_height = closest_resolution
-                print(f"[Minimal_Video_Resolution] Configurando resolución a {res_width}x{res_height}")
+                print(f"[Minimal_Video_Resolution] Setting resolution to {res_width}x{res_height}")
                 self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, res_width)
                 self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, res_height)
                 self.capture_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                 self.capture_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                 self.resize_needed = True
             else:
-                print("[Minimal_Video_Resolution] No se encontró resolución adecuada")
+                print("[Minimal_Video_Resolution] No suitable resolution found")
     
     def update_fragment_parameters(self):
         if not self.resize_needed:
@@ -153,7 +152,7 @@ class Minimal_Video_Resolution(minimal_video_fps.Minimal_Video_FPS):
             end = min(start + self.effective_video_payload_size, self.expected_frame_size)
             self.fragment_ranges.append((start, end))
         self.fragment_headers = [struct.pack(self._header_format, i) for i in range(self.total_frags)]
-        print(f"[Minimal_Video_Resolution] Actualizado fragmentación para {self.total_frags} fragmentos")
+        print(f"[Minimal_Video_Resolution] Updated fragmentation for {self.total_frags} fragments")
     
     def process_frame(self, frame):
         if self.resize_needed and hasattr(self, 'target_width') and self.target_width > 0:
@@ -190,7 +189,7 @@ class Minimal_Video_Resolution_Verbose(Minimal_Video_Resolution, minimal_video_f
         self.total_resize_time = 0
         self.resize_count = 0
         self.supported_resolutions = self.get_supported_resolutions()
-        print("[Minimal_Video_Resolution_Verbose] Modo verbose con estadísticas de resolución inicializado")
+        print("[Minimal_Video_Resolution_Verbose] Verbose mode with resolution statistics initialized")
 
     def process_frame(self, frame):
         
@@ -233,31 +232,31 @@ class Minimal_Video_Resolution_Verbose(Minimal_Video_Resolution, minimal_video_f
                 self.show_video()
                 self.control_framerate(loop_start)
         except Exception as e:
-            print(f"[Minimal_Video_Resolution_Verbose] Error en el bucle de video: {e}")
+            print(f"[Minimal_Video_Resolution_Verbose] Error in video loop: {e}")
             pass
 
     def print_final_averages(self):
         super().print_final_averages()
         if self.resize_needed and self.resize_count > 0:
             avg_resize_time = self.total_resize_time / self.resize_count
-            print("\n=== Estadísticas de Resolución ===")
-            print(f"Resolución objetivo: {self.target_width}x{self.target_height}")
-            print(f"Resolución real: {self.capture_width}x{self.capture_height}")
-            print(f"Tiempo promedio de reescalado: {avg_resize_time*1000:.2f} ms")
-            print(f"Impacto en rendimiento:        {avg_resize_time/((1.0/self.fps_target) if self.fps_target else 1)*100:.1f}%")
-            print("=================================")
-        print("\n=== Resoluciones compatibles de la cámara ===")
+            print("\n=== Resolution Statistics ===")
+            print(f"Target resolution: {self.target_width}x{self.target_height}")
+            print(f"Actual resolution: {self.capture_width}x{self.capture_height}")
+            print(f"Average rescaling time: {avg_resize_time*1000:.2f} ms")
+            print(f"Performance impact:     {avg_resize_time/((1.0/self.fps_target) if self.fps_target else 1)*100:.1f}%")
+            print("=============================")
+        print("\n=== Camera compatible resolutions ===")
         if self.supported_resolutions:
             for idx, (width, height) in enumerate(self.supported_resolutions, 1):
                 resolution_str = f"{width}x{height}"
                 if width == self.capture_width and height == self.capture_height:
-                    resolution_str += " * SELECCIONADA"
+                    resolution_str += " * SELECTED"
                 print(f"  {idx}. {resolution_str}")
         else:
-            print("  No se detectaron resoluciones compatibles específicas.")
+            print("  No specific compatible resolutions detected.")
         camera_device = getattr(minimal_video.args, 'camera_device', '/dev/video0')
-        print(f"\nDispositivo de cámara: {camera_device}")
-        print("==========================================")
+        print(f"\nCamera device: {camera_device}")
+        print("======================================")
 
 if __name__ == "__main__":
     try:
@@ -275,22 +274,22 @@ if __name__ == "__main__":
     verbose_class_exists = hasattr(minimal_video, 'Minimal_Video__verbose')
 
     if verbose_enabled and verbose_class_exists:
-        print("Iniciando en modo Verbose con control de resolución...")
+        print("Starting in Verbose mode with resolution control...")
         intercom_app = Minimal_Video_Resolution_Verbose()
     else:
-        print("Iniciando en modo estándar con control de resolución...")
+        print("Starting in standard mode with resolution control...")
         intercom_app = Minimal_Video_Resolution()
 
     try:
         intercom_app.run()
     except KeyboardInterrupt:
-        print("\nInterrupción por teclado detectada.")
+        print("\nKeyboard interrupt detected.")
     except Exception as e:
-        print(f"\nError inesperado: {e}")
+        print(f"\nUnexpected error: {e}")
         import traceback
         traceback.print_exc()
     finally:
         if hasattr(intercom_app, 'print_final_averages') and callable(intercom_app.print_final_averages):
             time.sleep(0.2)
             intercom_app.print_final_averages()
-        print("Programa terminado.")
+        print("Program terminated.")

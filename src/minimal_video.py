@@ -45,19 +45,14 @@ if not hasattr(minimal, 'parser'):
     minimal.parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser = minimal.parser
 
-parser.add_argument("-v", "--video_payload_size", type=int, default=1400,
-                    help="Tamaño deseado (bytes) payload video/fragmento UDP (defecto 1400).")
-parser.add_argument("-w", "--width", type=int, default=320, help="Ancho video (defecto 320)")
-parser.add_argument("-g", "--height", type=int, default=240, help="Alto video (defecto 240)")
-parser.add_argument("-z", "--fps", type=int, default=30, help="Frames por segundo video (defecto 30)")
-parser.add_argument("--show_video", action="store_true", default=False,
-                    help="Habilita la visualización y transmisión del video (desactivado por defecto).")
-parser.add_argument("-lvp", "--listening_video_port", type=int, default=4445,
-                    help="Puerto en el que se escucha para recibir video (defecto 4445).")
-parser.add_argument("-dvp", "--destination_video_port", type=int, default=4445,
-                    help="Puerto al que se envía el video (defecto 4445).")
-parser.add_argument("--camera_index", type=int, default=0,
-                    help="Índice de la cámara a utilizar (defecto 0).")
+parser.add_argument("-v", "--video_payload_size", type=int, default=1400, help="Desired size (bytes) of video payload/UDP fragment (default 1400).")
+parser.add_argument("-w", "--width", type=int, default=320, help="Video width (default 320)")
+parser.add_argument("-g", "--height", type=int, default=240, help="Video height (default 240)")
+parser.add_argument("-z", "--fps", type=int, default=30, help="Video frames per second (default 30)")
+parser.add_argument("--show_video", action="store_true", default=False, help="Enables video visualization and transmission (disabled by default).")
+parser.add_argument("-lvp", "--listening_video_port", type=int, default=4445, help="Port to listen on for receiving video (default 4445).")
+parser.add_argument("-dvp", "--destination_video_port", type=int, default=4445, help="Port to send video to (default 4445).")
+parser.add_argument("--camera_index", type=int, default=0, help="Index of the camera to use (default 0).")
 
 
 args = None
@@ -82,7 +77,7 @@ class Minimal_Video(minimal.Minimal):
         try:
             self.video_sock.bind(("0.0.0.0", args.listening_video_port))
         except OSError as e:
-            print(f"Error bind socket video: {e}")
+            print(f"Error binding video socket: {e}")
             raise
         self.video_addr = (args.destination_address, args.destination_video_port)
 
@@ -92,7 +87,7 @@ class Minimal_Video(minimal.Minimal):
         self.max_payload_possible = self.effective_video_payload_size - self.header_size
         self.effective_video_payload_size = max(1, min(args.video_payload_size, self.max_payload_possible))
         if self.effective_video_payload_size != args.video_payload_size:
-            print(f"Aviso: --video_payload_size ajustado a {self.effective_video_payload_size} bytes.")
+            print(f"Warning: --video_payload_size adjusted to {self.effective_video_payload_size} bytes.")
 
         self.cap = None
         self.width = 0
@@ -102,11 +97,11 @@ class Minimal_Video(minimal.Minimal):
         self.expected_frame_size = 0
         self.total_frags = 0
 
-        print(f"Flag --show_video detectado. Intentando inicializar la cámara con índice {args.camera_index}...")
+        print(f"Flag --show_video detected. Attempting to initialize camera with index {args.camera_index}...")
         try:
             self.cap = cv2.VideoCapture(args.camera_index)
             if not self.cap.isOpened():
-                raise IOError(f"No se pudo abrir la cámara con índice {args.camera_index}.")
+                raise IOError(f"Could not open camera with index {args.camera_index}.")
             if args.width > 0:
                 self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
             if args.height > 0:
@@ -130,9 +125,9 @@ class Minimal_Video(minimal.Minimal):
                 self.fragment_headers.append(struct.pack(self._header_format, frag_idx))
 
             self.remote_frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
-
+            
         except Exception as e:
-            print(f"Error al inicializar la cámara: {e}. Deshabilitando video.")
+            print(f"Error initializing camera: {e}. Disabling video.")
             if self.cap:
                 self.cap.release()
             self.cap = None
@@ -150,7 +145,7 @@ class Minimal_Video(minimal.Minimal):
         try:
             self.video_sock.sendto(packet, self.video_addr)
         except BlockingIOError:
-            print(f"Socket bloqueado al enviar fragmento {frag_idx}.")
+            print(f"Socket blocked while sending fragment {frag_idx}.")
             pass
         return len(packet)
 
@@ -181,16 +176,16 @@ class Minimal_Video(minimal.Minimal):
                     self.receive_video_fragment()
                 self.show_video()
         except Exception as e:
-            print(f"Error en el bucle de video: {e}")
+            print(f"Error in video loop: {e}")
             pass
 
     def run(self):
         if not args.show_video or self.cap is None:
-            print("Video desactivado. Ejecutando solo la parte de audio.")
+            print("Video disabled. Running audio-only mode.")
             super().run()
             return
 
-        print("Iniciando video con bucle unificado y protocolo simplificado...")
+        print("Starting video with unified loop and simplified protocol...")
 
         t_unified = threading.Thread(target=self.video_loop, daemon=True, name="UnifiedVideoThread")
         t_unified.start()
@@ -198,7 +193,7 @@ class Minimal_Video(minimal.Minimal):
         try:
             super().run()
         except KeyboardInterrupt:
-            print("Interrupción por teclado detectada.")
+            print("Keyboard interrupt detected.")
         finally:
             self.running = False
             if t_unified.is_alive():
@@ -208,7 +203,7 @@ class Minimal_Video(minimal.Minimal):
             cv2.destroyAllWindows()
             if hasattr(self, 'video_sock') and self.video_sock:
                 self.video_sock.close()
-            print("Aplicación de video detenida.")
+            print("Video application stopped.")
 
 class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
     def __init__(self):
@@ -221,7 +216,7 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
             minimal.Minimal__verbose.__init__(self)
             print(f"Verbose Mode: stats cycle = {self.seconds_per_cycle}s")
         except AttributeError:
-            print("Error: No se pudo inicializar minimal.Minimal__verbose. Las estadísticas no funcionarán.")
+            print("Error: Could not initialize minimal.Minimal__verbose. Statistics will not work.")
 
         self.video_sent_bytes_count = 0
         self.video_sent_messages_count = 0
@@ -243,8 +238,8 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
         self.end_time = None
         if hasattr(args, "reading_time") and args.reading_time:
             self.end_time = time.time() + float(args.reading_time)
-            print(f"Programa terminará automáticamente después de {args.reading_time} segundos")
-            print(f"Tiempo de finalización programado: {time.strftime('%H:%M:%S', time.localtime(self.end_time))}")
+            print(f"Program will terminate automatically after {args.reading_time} seconds")
+            print(f"Scheduled end time: {time.strftime('%H:%M:%S', time.localtime(self.end_time))}")
             self.time_event = threading.Event()
 
     def print_header(self):
@@ -303,9 +298,11 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
         self.print_footer()
 
         while self.running:
+            time.sleep(self.seconds_per_cycle) 
+            
             now = time.time()
             if self.end_time and now >= self.end_time:
-                print(f"\nLímite de tiempo alcanzado: {getattr(args, 'reading_time', '?')} segundos")
+                print(f"\nTime limit reached: {getattr(args, 'reading_time', '?')} seconds")
                 self.time_event.set()
                 break
 
@@ -354,12 +351,11 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
             cycle += 1
             self.old_time = now
             self.old_CPU_time = psutil.Process().cpu_times()[0]
-            time.sleep(1)
 
     def print_final_averages(self):
         total_time = time.time() - self._stats_start_time
         if total_time < 0.1:
-            print("Duración demasiado corta para calcular promedios de ancho de banda.")
+            print("Duration too short to calculate bandwidth averages.")
             return
 
         audio_sent_kbps = self._total_audio_sent_bytes * 8 / 1000 / total_time
@@ -372,13 +368,13 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
             if self._fragments_received_history else 0
         )
 
-        print("\n=== Estadísticas globales de ancho de banda ===")
-        print(f"Audio enviado:    {audio_sent_kbps:.2f} kbps")
-        print(f"Audio recibido:   {audio_received_kbps:.2f} kbps")
-        print(f"Video enviado:    {video_sent_kbps:.2f} kbps")
-        print(f"Video recibido:   {video_received_kbps:.2f} kbps")
-        print(f"Tiempo total:     {total_time:.1f} s")
-        print("=======================================================")
+        print("\n=== Global bandwidth statistics ===")
+        print(f"Audio sent:       {audio_sent_kbps:.2f} kbps")
+        print(f"Audio received:   {audio_received_kbps:.2f} kbps")
+        print(f"Video sent:       {video_sent_kbps:.2f} kbps")
+        print(f"Video received:   {video_received_kbps:.2f} kbps")
+        print(f"Total time:       {total_time:.1f} s")
+        print("=====================================")
 
     def video_loop(self):
         try:
@@ -399,24 +395,24 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
 
                 self._fragments_received_this_cycle = fragments_received_this_cycle
                 self.show_video()
-        except Exception as e: # Captura más genérica para errores en el bucle
-            print(f"Error en el bucle de video (verbose): {e}")
+        except Exception:
+            print(f"Error in video loop: {e}")
             pass
 
 
     def run(self):
         if not args.show_video or not hasattr(self, 'cap') or self.cap is None:
-            print("Video desactivado. Ejecutando solo la parte de audio en modo verbose.")
+            print("Video disabled. Running audio-only mode in verbose.")
             minimal.Minimal__verbose.run(self)
             return
 
         if not hasattr(self, 'loop_cycle_feedback'):
-            print("Advertencia: El bucle de feedback de estadísticas no está disponible. Ejecutando sin estadísticas.")
-            super().run() # Llama al run de Minimal_Video
+            print("Warning: Statistics feedback loop is not available. Running without statistics.")
+            super().run()
             return
 
-        print("Iniciando video con bucle unificado y protocolo simplificado (verbose)...")
-        print("Presiona Ctrl+C para terminar\n")
+        print("Starting video with unified loop and simplified protocol (verbose)...")
+        print("Press Ctrl+C to terminate\n")
         self.print_header()
 
         cycle_feedback_thread = threading.Thread(target=self.loop_cycle_feedback, daemon=True, name="FeedbackThread")
@@ -426,9 +422,9 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
         t_unified.start()
 
         try:
-            minimal.Minimal__verbose.run(self) # Ejecuta el run de la clase base de audio verbose
+            minimal.Minimal.run(self)
         except KeyboardInterrupt:
-            print("Interrupción por teclado detectada.")
+            print("Keyboard interrupt detected.")
         finally:
             self.running = False
             if cycle_feedback_thread.is_alive():
@@ -440,7 +436,7 @@ class Minimal_Video__verbose(Minimal_Video, minimal.Minimal__verbose):
             cv2.destroyAllWindows()
             if hasattr(self, 'video_sock') and self.video_sock:
                 self.video_sock.close()
-            print("Aplicación de video detenida.")
+            print("Video application stopped.")
 
 if __name__ == "__main__":
     try:
@@ -458,10 +454,10 @@ if __name__ == "__main__":
     verbose_class_exists = hasattr(minimal, 'Minimal__verbose')
 
     if verbose_enabled and verbose_class_exists:
-        print("Iniciando en modo Verbose...")
+        print("Starting in Verbose mode...")
         intercom_app = Minimal_Video__verbose()
     elif verbose_enabled and not verbose_class_exists:
-        print("Advertencia: Modo verbose activado pero minimal.Minimal__verbose no encontrado. Ejecutando sin estadísticas.")
+        print("Warning: Verbose mode enabled but minimal.Minimal__verbose not found. Running without statistics.")
         intercom_app = Minimal_Video()
     else:
         intercom_app = Minimal_Video()
@@ -471,11 +467,11 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        print(f"\nError inesperado: {e}")
+        print(f"\nUnexpected error: {e}")
         import traceback
         traceback.print_exc()
     finally:
         if hasattr(intercom_app, 'print_final_averages') and callable(intercom_app.print_final_averages):
-            time.sleep(0.2) # Pequeña pausa para asegurar que las estadísticas se impriman correctamente
+            time.sleep(0.2)
             intercom_app.print_final_averages()
-        print("Programa terminado.")
+        print("Program terminated.")

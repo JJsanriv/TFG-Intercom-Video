@@ -26,7 +26,7 @@ class Minimal_Video_FPS(minimal_video.Minimal_Video):
             args = minimal_video.args
             if hasattr(args, 'fps') and args.fps > 0:
                 self.fps_target = args.fps
-                print(f"[Minimal_Video_FPS] FPS objetivo para control de bucle: {self.fps_target}")
+                print(f"[Minimal_Video_FPS] Target FPS for loop control: {self.fps_target}")
     
     def control_framerate(self, start_time):
 
@@ -47,9 +47,9 @@ class Minimal_Video_FPS(minimal_video.Minimal_Video):
                     self.send_video_fragment(frag_idx, data)
                     self.receive_video_fragment()
                 self.show_video()
-                self.control_framerate(loop_start)
+                self._control_framerate(loop_start)
         except Exception as e:
-            print(f"[Minimal_Video_FPS] Error en el bucle de video: {e}")
+            print(f"[Minimal_Video_FPS] Error in video loop: {e}")
             pass
 
 class Minimal_Video_FPS_Verbose(Minimal_Video_FPS, minimal_video.Minimal_Video__verbose):
@@ -60,7 +60,7 @@ class Minimal_Video_FPS_Verbose(Minimal_Video_FPS, minimal_video.Minimal_Video__
         self.max_frame_history = 30 # Number of frames to average
         self.last_frame_time = time.time() 
         super().__init__()
-        print("[Minimal_Video_FPS_Verbose] Modo verbose con estadísticas de FPS inicializado")
+        print("[Minimal_Video_FPS_Verbose] Verbose mode with FPS statistics initialized")
     
     def control_framerate(self, start_time):
         now = time.time()
@@ -97,7 +97,7 @@ class Minimal_Video_FPS_Verbose(Minimal_Video_FPS, minimal_video.Minimal_Video__
                 self.show_video()
                 self.control_framerate(loop_start)
         except Exception as e:
-            print(f"[Minimal_Video_FPS] Error en el bucle de video: {e}")
+            print(f"[Minimal_Video_FPS] Error in video loop: {e}")
             pass
 
     def print_final_averages(self):
@@ -106,11 +106,11 @@ class Minimal_Video_FPS_Verbose(Minimal_Video_FPS, minimal_video.Minimal_Video__
         if hasattr(self, 'frame_times') and self.frame_times:
             avg_frame_time = sum(self.frame_times) / len(self.frame_times)
             fps_real_avg = 1.0 / avg_frame_time if avg_frame_time > 0 else 0
-            print("\n=== Estadísticas de FPS ===")
-            print(f"FPS objetivo:     {self.fps_target:.1f}")
-            print(f"FPS real promedio: {fps_real_avg:.1f}")
-            print(f"Eficiencia FPS:    {(fps_real_avg/self.fps_target*100 if self.fps_target else 0):.1f}%")
-            print("==========================")
+            print("\n=== FPS Statistics ===")
+            print(f"Target FPS:       {self.fps_target:.1f}")
+            print(f"Average real FPS: {fps_real_avg:.1f}")
+            print(f"FPS efficiency:   {(fps_real_avg/self.fps_target*100 if self.fps_target else 0):.1f}%")
+            print("======================")
 
 if __name__ == "__main__":
     try:
@@ -128,22 +128,22 @@ if __name__ == "__main__":
     verbose_class_exists = hasattr(minimal_video, 'Minimal_Video__verbose')
     
     if verbose_enabled and verbose_class_exists:
-        print("Iniciando en modo Verbose FPS...")
+        print("Starting in Verbose FPS mode...")
         intercom_app = Minimal_Video_FPS_Verbose()
     else:
-        print("Iniciando en modo FPS estándar...")
+        print("Starting in standard FPS mode...")
         intercom_app = Minimal_Video_FPS()
 
     try:
         intercom_app.run()
     except KeyboardInterrupt:
-        print("\nInterrupción por teclado detectada.")
+        print("\nKeyboard interrupt detected.")
     except Exception as e:
-        print(f"\nError inesperado: {e}")
+        print(f"\nUnexpected error: {e}")
         import traceback
         traceback.print_exc()
     finally:
         if hasattr(intercom_app, 'print_final_averages') and callable(intercom_app.print_final_averages):
             time.sleep(0.2)
             intercom_app.print_final_averages()
-        print("Programa terminado.")
+        print("Program terminated.")
