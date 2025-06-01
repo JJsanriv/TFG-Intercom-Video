@@ -1,0 +1,73 @@
+\label{sec:conclusion}
+En este capítulo se presentan las conclusiones obtenidas a partir de las pruebas realizadas con los módulos de videollamada desarrollados, que se resumen en la Tabla \ref{tab:resumen_pruebas_globales}. Estas pruebas abarcan diferentes condiciones de red, incluyendo variaciones en el ancho de banda, latencia, jitter y pérdida de paquetes. Los resultados obtenidos permiten evaluar el rendimiento y la adaptabilidad de cada módulo en situaciones diversas. Finalmente, se sugerirán posibles implementaciones futuras para mejorar el sistema existente y desarrollado en este trabajo.
+\subsection{Conclusiones generales}
+Las conclusiones que se pueden extraer de estas pruebas mostradas en la Tabla \ref{tab:resumen_pruebas_globales}, que abarcan diferentes condiciones y limitaciones de la red, son las siguientes:
+
+\begin{itemize}
+\item \textbf{Impacto del ancho de banda (capacidad de la red):}
+\begin{itemize}
+\item Con una capacidad muy baja (1 Mbps), la comunicación es prácticamente imposible. Se envía mucha más información de la que llega, especialmente el vídeo, y los fotogramas por segundo (FPS) son mínimos (solo 1 FPS, eficiencia del 8-9\%). La red está saturada.
+\item Con una capacidad baja (10 Mbps), la situación mejora, pero sigue siendo difícil. Se recibe más información, pero los módulos que intentan ajustar los FPS todavía logran muy pocos (1.2-1.6 FPS, eficiencia del 9-14\%). La red aún se congestiona a veces.
+\item Con una capacidad media (50 Mbps), la comunicación es buena. Se recibe casi toda la información enviada (más del 90\% del audio y vídeo). El módulo \textit{Minimal\_Video} funciona fluido. Los módulos que ajustan FPS mejoran bastante, logrando 5 FPS (\textit{Minimal\_Video\_FPS} con 41.5\% de eficiencia) y 3.6 FPS (\textit{Minimal\_Video\_Resolution} con 29.8\% de eficiencia), y la red no se satura.
+\end{itemize}
+\item \textbf{Efecto de la latencia (retraso en la red) y el jitter (variación del retraso):}
+\begin{itemize}
+    \item Con un retraso ideal (0 ms, jitter mínimo), la transmisión de datos es muy eficiente (llega más del 94\% del vídeo y más del 90\% del audio). Sin embargo, los módulos que ajustan FPS no alcanzan el objetivo de 12 FPS, quedándose en unos 5.2-5.4 FPS (eficiencia del 43-45\%), lo que indica que hay otros factores limitantes además de la red.
+    \item Con un retraso moderado (100 ms y jitter asociado), sorprendentemente, el módulo \textit{Minimal\_Video\_FPS} alcanza su mejor rendimiento, llegando a 11.4 FPS (95\% de eficiencia). \textit{Minimal\_Video\_Resolution} también mejora a 6.6 FPS (55.4\% de eficiencia). La llegada de datos sigue siendo muy buena. Parece que este retraso ayuda a organizar mejor el envío de fotogramas.
+    \item Con un retraso alto (250 ms y jitter severo), aunque la cantidad de datos que llega sigue siendo alta (más del 89\% del vídeo), la experiencia del usuario se ve afectada por el gran retraso y la irregularidad. Los módulos que ajustan FPS aún funcionan decentemente (8.3 FPS para \textit{Minimal\_Video\_FPS} y 6.0 FPS para \textit{Minimal\_Video\_Resolution}), pero la comunicación se siente poco fluida.
+\end{itemize}
+
+\item \textbf{Degradación por pérdida de paquetes:}
+\begin{itemize}
+    \item Con una pérdida baja (5\%), la comunicación es aceptable. El audio llega muy bien en los módulos con ajuste de FPS (casi el 100\% recibido), y la pérdida de vídeo es pequeña (llega el 93-97\%). Los FPS se mantienen sobre 5-5.7 (eficiencia del 42-47\%). Hay pequeños fallos visuales y de sonido.
+    \item Con una pérdida media (25\%), la comunicación se degrada mucho. Se pierde casi la mitad del audio (llega solo el 44-51\%) y una cuarta parte del vídeo (llega el 62-77\%). Los FPS caen a 2-3 (eficiencia del 17-25\%), haciendo la videollamada prácticamente inútil.
+    \item Con una pérdida muy alta (50\%), la comunicación colapsa. Se pierde la mayor parte del audio (llega solo el 15-18\%) y la mitad del vídeo (llega el 48-52\%). Los FPS son mínimos, entre 1.5 y 1.7 (eficiencia del 12-14\%), lo que es inviable.
+\end{itemize}
+
+\item \textbf{Adaptabilidad de los módulos:}
+\begin{itemize}
+    \item Los módulos \textit{Minimal\_Video\_FPS} y \textit{Minimal\_Video\_Resolution}, que intentan ajustar los FPS y la resolución, muestran un comportamiento interesante. Funcionan especialmente bien con retrasos moderados en la red (100 ms de latencia).
+    \item Sin embargo, cuando la capacidad de la red es muy baja (1 Mbps) o la pérdida de paquetes es alta (25\% o más), estas funciones adaptativas no son suficientes para ofrecer una buena experiencia, y el rendimiento cae drásticamente, al igual que con el módulo básico.
+    \item El proceso de cambiar la resolución en \textit{Minimal\_Video\_Resolution} (TR) es rápido (entre 2.8 y 6.5 milisegundos) y no consume muchos recursos del ordenador (impacto del 3-8\%), por lo que no es un problema en sí mismo.
+\end{itemize}
+\end{itemize}
+
+Estas conclusiones indican que no hay un único módulo "mejor" para todas las situaciones.
+El módulo \textbf{\textit{Minimal\_Video}} es sencillo y funciona bien si la red es buena (alta capacidad, bajo retraso y pocas pérdidas).
+El módulo \textbf{\textit{Minimal\_Video\_FPS}} destaca por su capacidad de mantener una buena tasa de fotogramas cuando hay un retraso moderado en la red (como 100 ms).
+El módulo \textbf{\textit{Minimal\_Video\_Resolution}} también se adapta bien al retraso y el cambio de resolución es eficiente.
+En condiciones de red muy malas (capacidad de 1 Mbps o pérdidas de paquetes del 25\% o más), todos los módulos fallan en proporcionar una comunicación efectiva. La elección del módulo dependerá del tipo de problema de red que se espere encontrar.
+
+\subsection{Trabajo futuro}
+A partir del análisis de los resultados y las limitaciones observadas, en conjunto con todo lo expuesto en este proyecto, se proponen unas líneas y propuestas de trabajo a futuro para mejorar y expandir las capacidades del sistema de videollamada:
+
+\begin{itemize}
+\item \textbf{Mejorar la resistencia a la pérdida de paquetes:}
+\begin{itemize}
+\item \textbf{Corrección de errores hacia adelante (FEC):} Implementar técnicas como FEC, donde se envía información redundante junto con los datos originales. Esto permitiría al receptor reconstruir algunos paquetes perdidos sin necesidad de pedirlos de nuevo, mejorando la fluidez del vídeo y audio cuando la red pierde paquetes~\cite{fec}.
+\end{itemize}
+\item \textbf{Adaptación más inteligente al ancho de banda disponible:}
+\begin{itemize}
+    \item \textbf{Compresión de vídeo y audio más avanzada:} Aunque el proyecto se centra en módulos sin ningún tipo de compresión, la posible implementación de algoritmos de compresión de vídeo (como H.264, VP9)~\cite{h264} y audio (como Opus)~\cite{opus} podría reducir drásticamente la cantidad de datos necesarios, haciendo que la videollamada funcione mucho mejor con menos ancho de banda.
+    \item \textbf{Ajuste dinámico de la calidad:} Desarrollar un sistema que mida continuamente la calidad de la red (ancho de banda, pérdida) y ajuste automáticamente la resolución del vídeo, los fotogramas por segundo (FPS) o el nivel de compresión para mantener la llamada lo más fluida posible. Por ejemplo, si la red empeora, podría reducir la calidad del vídeo para priorizar el audio.
+\end{itemize}
+
+\item \textbf{Optimización del rendimiento local para alcanzar los FPS deseados:}
+\begin{itemize}
+    \item \textbf{Revisión del proceso de captura y envío:} Investigar si hay cuellos de botella en el propio ordenador al capturar las imágenes de la cámara, procesarlas y enviarlas. Optimizar estas partes podría ayudar a alcanzar los FPS objetivo incluso cuando la red es buena.
+\end{itemize}
+
+\item \textbf{Mejor manejo del jitter:}
+\begin{itemize}
+    \item \textbf{Buffer de jitter adaptativo:} Implementar un pequeño buffer temporal en el lado del receptor que guarde los paquetes de audio y vídeo por un corto periodo antes de mostrarlos. Si este buffer ajusta su tamaño dinámicamente según la variación del retraso, puede ayudar a que el vídeo y el audio se reproduzcan de forma más continua, aunque los paquetes llegan de forma irregular.
+\end{itemize}
+
+\item \textbf{Nuevas funcionalidades y usabilidad:}
+\begin{itemize}
+    \item \textbf{Interfaz gráfica más completa:} Desarrollar una interfaz de usuario más amigable que permita configurar fácilmente las opciones.
+    \item \textbf{Seguridad:} Añadir cifrado a la comunicación para proteger la privacidad de las conversaciones.
+    \item \textbf{Servidor local:} Implementar un servidor local que gestione las conexiones y la comunicación entre los módulos con una interfaz web en la que se puedan ver los distintos dispositivos de la red y poder establecer comunicación entre ellos.
+\end{itemize}
+\end{itemize}
+
+Estas mejoras podrían hacer que el sistema sea más robusto frente a diferentes condiciones de red y más fácil de usar, ofreciendo una experiencia de videollamada de mayor calidad en un rango más amplio de escenarios.

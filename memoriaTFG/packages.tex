@@ -1,5 +1,7 @@
 % Paquetes básicos
 \usepackage[utf8]{inputenc}
+\usepackage{listings}
+\usepackage{listingsutf8}
 \usepackage[T1]{fontenc}
 \usepackage[spanish,es-tabla]{babel}
 \usepackage{graphicx}
@@ -10,7 +12,6 @@
 \usepackage{tikz}
 \usepackage{pgfgantt}
 \usepackage{anyfontsize}
-\usepackage{listings}
 \usepackage{xcolor}
 \usepackage{hyperref}
 \usepackage{titlesec}
@@ -100,7 +101,8 @@
 \lstdefinestyle{pythonstyle}{
     language=Python,
     backgroundcolor=\color{codebackground},
-    basicstyle=\ttfamily\small,
+    basicstyle=\ttfamily\scriptsize,
+    inputencoding=utf8,
     keywordstyle=\color{codekeyword}\bfseries,
     stringstyle=\color{codestring},
     commentstyle=\color{codecomment}\itshape,
@@ -119,5 +121,7 @@
     rulecolor=\color{black},
     framerule=0.5pt,
     xleftmargin=3.4pt,
-    xrightmargin=3.4pt
+    xrightmargin=3.4pt,
+    literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1 {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1 {ñ}{{\~n}}1 {Ñ}{{\~N}}1
 }
+
