@@ -6,7 +6,7 @@ Las conclusiones que se pueden extraer de estas pruebas mostradas en la Tabla \r
 \begin{itemize}
 \item \textbf{Impacto del ancho de banda (capacidad de la red):}
 \begin{itemize}
-\item Con una capacidad muy baja (1 Mbps), la comunicación es prácticamente imposible. Se envía mucha más información de la que llega, especialmente el vídeo, y los fotogramas por segundo (FPS) son mínimos (solo 1 FPS, eficiencia del 8-9\%). La red está saturada.
+\item Con una capacidad muy baja (1 Mbps), la comunicación audiovisual (al menos sin comprimir) es prácticamente imposible. Se envía mucha más información de la que llega, especialmente el vídeo, y los fotogramas por segundo (FPS) son mínimos (solo 1 FPS, eficiencia del 8-9\%). La red está saturada.
 \item Con una capacidad baja (10 Mbps), la situación mejora, pero sigue siendo difícil. Se recibe más información, pero los módulos que intentan ajustar los FPS todavía logran muy pocos (1.2-1.6 FPS, eficiencia del 9-14\%). La red aún se congestiona a veces.
 \item Con una capacidad media (50 Mbps), la comunicación es buena. Se recibe casi toda la información enviada (más del 90\% del audio y vídeo). El módulo \textit{Minimal\_Video} funciona fluido. Los módulos que ajustan FPS mejoran bastante, logrando 5 FPS (\textit{Minimal\_Video\_FPS} con 41.5\% de eficiencia) y 3.6 FPS (\textit{Minimal\_Video\_Resolution} con 29.8\% de eficiencia), y la red no se satura.
 \end{itemize}
@@ -32,7 +32,7 @@ Las conclusiones que se pueden extraer de estas pruebas mostradas en la Tabla \r
 \end{itemize}
 \end{itemize}
 
-Estas conclusiones indican que no hay un único módulo "mejor" para todas las situaciones.
+Estas conclusiones indican que no hay un único módulo ``mejor'' para todas las situaciones.
 El módulo \textbf{\textit{Minimal\_Video}} es sencillo y funciona bien si la red es buena (alta capacidad, bajo retraso y pocas pérdidas).
 El módulo \textbf{\textit{Minimal\_Video\_FPS}} destaca por su capacidad de mantener una buena tasa de fotogramas cuando hay un retraso moderado en la red (como 100 ms).
 El módulo \textbf{\textit{Minimal\_Video\_Resolution}} también se adapta bien al retraso y el cambio de resolución es eficiente.
@@ -59,7 +59,7 @@ A partir del análisis de los resultados y las limitaciones observadas, en conju
 
 \item \textbf{Mejor manejo del jitter:}
 \begin{itemize}
-    \item \textbf{Buffer de jitter adaptativo:} Implementar un pequeño buffer temporal en el lado del receptor que guarde los paquetes de audio y vídeo por un corto periodo antes de mostrarlos. Si este buffer ajusta su tamaño dinámicamente según la variación del retraso, puede ayudar a que el vídeo y el audio se reproduzcan de forma más continua, aunque los paquetes llegan de forma irregular.
+    \item \textbf{Buffer de jitter adaptativo:} Implementar un pequeño buffer temporal en el lado del receptor que guarde los paquetes de vídeo por un corto periodo antes de mostrarlos. Si este buffer ajusta su tamaño dinámicamente según la variación del retraso, puede ayudar a que el vídeo y el audio se reproduzcan de forma más continua, aunque los paquetes llegan de forma irregular.
 \end{itemize}
 
 \item \textbf{Nuevas funcionalidades y usabilidad:}

@@ -1,11 +1,130 @@
 \label{sec:resultados_y_discusion}
 
-\subsection{Ejecución de los módulos}
+\subsection{Configuración de hardware}
 
-Esta parte de la memoria es la más importante, ya que aquí se presentan los resultados obtenidos a partir de la implementación de los códigos ya explicados. 
+Los experimentos se realizaron utilizando dos instancias de InterCom ejecutándose en ordenadores físicos distintos. La primera instancia se ejecutó en un portátil equipado con WebCam integrada, mientras que la segunda se ejecutó en un PC de escritorio con WebCam externa. Ambos sistemas utilizan el mismo entorno virtual \textit{Xubuntu} bajo \textit{Oracle VirtualBox}, con configuraciones prácticamente idénticas. La única diferencia significativa es la asignación de memoria RAM: 8 GB para el portátil y 16 GB para el PC de escritorio. Esta diferencia no debería influir en los resultados de las pruebas, ya que ambas configuraciones proporcionan recursos suficientes para la ejecución de los módulos.
 \vspace{\baselineskip}
 
-Antes de nada, se mostrará una ejecución normal de cada módulo implementado para que se observe el funcionamiento y su salida sin ningún tipo de alteración en cada uno de ellos. 
+Como se puede ver en la Figura \ref{fig:conf_red}, para establecer la comunicación entre las instancias, se configuró un adaptador de red tipo ``puente'' (a través de la configuración en \textit{Oracle VirtualBox}) en ambas máquinas virtuales. Esta configuración permite que las máquinas virtuales, aun ejecutándose en ordenadores físicos diferentes, se comuniquen directamente a través de la red. Las direcciones IP asignadas fueron 192.168.0.58 para el portátil y 192.168.0.68 para el PC de escritorio.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        node distance=3cm,
+        computer/.style={rectangle, draw, thick, minimum width=2.5cm, minimum height=1.5cm, align=center},
+        vm/.style={rectangle, draw, dashed, minimum width=2cm, minimum height=1cm, align=center, fill=gray!20},
+        network/.style={ellipse, draw, thick, minimum width=4cm, minimum height=1.5cm, align=center, fill=blue!10}
+    ]
+        
+        % Ordenadores físicos
+        \node[computer] (laptop) {\textbf{Portátil}\\8 GB RAM};
+        \node[computer, right=6cm of laptop] (pc) {\textbf{PC Escritorio}\\16 GB RAM};
+        
+        % Máquinas virtuales
+        \node[vm, below=0.5cm of laptop] (vm1) {VM Xubuntu\\InterCom\\192.168.0.58};
+        \node[vm, below=0.5cm of pc] (vm2) {VM Xubuntu\\InterCom\\192.168.0.68};
+        
+        % Red local
+        \node[network, below=2.5cm of laptop, right=1.5cm] (network) {\textbf{Red Local}\\\textbf{(Adaptador Puente)}};
+        
+        % Conexiones
+        \draw[thick] (laptop) -- (vm1);
+        \draw[thick] (pc) -- (vm2);
+        \draw[thick] (vm1) -- (network);
+        \draw[thick] (vm2) -- (network);
+        
+        % Etiquetas de dispositivos
+        \node[below=0.2cm of vm1] {\small WebCam integrada};
+        \node[below=0.2cm of vm2] {\small WebCam externa};
+        
+    \end{tikzpicture}
+    \caption{Configuración usada en los experimentos.}
+    \label{fig:conf_red}
+\end{figure}
+
+Respecto a la presentación de resultados, únicamente se muestran las métricas de una de las instancias debido a que ambas presentan comportamientos prácticamente idénticos bajo las mismas condiciones de red, ambas máquinas con más de 100 Mbps de ancho de banda. Las pequeñas variaciones observadas (típicamente < 5\%) se deben principalmente a diferencias en el hardware de captura (WebCam integrada vs. externa) y no representan diferencias significativas en el rendimiento del protocolo, por lo que supone una comodidad y una manera mas eficiente poner los resultados de una de las instancias para no extender demasiado este documento. Además, todas las ejecuciones de los distintos módulos se han realizado con los parámetros por defecto (\textbf{320x240} y \textbf{30 FPS}), salvo que se indique lo contrario en el comando ejecución antes de la realización del experimento, así como también el módulo de \textit{Minimal\_Video\_Resolution} que se indica en cada ejecución la resolución utilizada y FPS concretos (en la mayoría de los casos \textbf{350x250} y \textbf{12 FPS}).
+\vspace{\baselineskip}
+
+Como línea de trabajo futuro, sería recomendable implementar la funcionalidad de transmisión de vídeo pregrabado en lugar de captura en tiempo real. Esta mejora permitiría realizar pruebas más controladas y reproducibles, eliminando las variaciones introducidas por las diferencias en los dispositivos de captura y proporcionando una base de comparación más objetiva para evaluar el rendimiento del protocolo bajo diferentes condiciones de red.
+\newpage
+
+\subsection{Pruebas de robustez ante degradación de red}
+
+Esta parte de la memoria es la más importante, ya que aquí se presentan los resultados obtenidos a partir de la implementación de los códigos ya explicados. En este capítulo, se procederá a simular distintas condiciones reales de red utilizando la herramienta ``tc''\footnote{Para más información sobre el comando, visitar: https://man7.org/linux/man-pages/man8/tc.8.html} de Linux. Se analizará el comportamiento de \textit{InterCom} bajo diferentes condiciones de ancho de banda, retardo y pérdida de paquetes. Finalmente, se extraerán las conclusiones sobre dicho comportamiento del módulo, así como, la robustez y limitaciones del sistema.
+\vspace{\baselineskip}
+
+A continuación, se comentan los distintos tipos de pruebas que se van realizar en cada subsección de este punto de la memoria:
+\begin{itemize}
+    \item \textbf{Pruebas de limitación de la tasa de transferencia}: Se simulará un ancho de banda limitado para comprobar el rendimiento del sistema bajo condiciones de red restringidas. Se probarán los siguientes anchos de banda:
+    \begin{itemize}
+        \item Ancho de banda muy bajo: 1 Mbps (prueba de una situación casi irreal).
+        \item Ancho de banda bajo: 10 Mbps (situación común en redes WiFi).
+        \item Ancho de banda medio (referencia): 50 Mbps o más (situación común en redes de fibra óptica, suficiente para la correcta ejecución del módulo).
+    \end{itemize}
+    \item \textbf{Pruebas de incremento del jitter} : Se simulará el efecto de una calidad de red variable, congestión o rutas inestables, observando la variación de la latencia (jitter) para analizar la cantidad de paquetes recibidos se pierden. Se probarán los siguientes escenarios con distintos niveles de latencia, lo que hace que se produzcan distintos grados de jitter:
+    \begin{itemize}
+      \item Jitter mínimo (Latencia 0 ms): Condiciones ideales, como una red local estable, donde la variación de latencia es despreciable.
+      \item Jitter moderado (Latencia 100 ms): Simula una red con cierta inestabilidad (e.g., redes domésticas con tráfico variable, conexiones Wi-Fi con interferencias).
+      \item Jitter grave (Latencia 250 ms): Representa condiciones de red muy inestables (e.g., red muy congestionada, enlaces de mala calidad), donde el jitter es alto y la llegada de paquetes es muy errática.
+    \end{itemize}
+    \item \textbf{Pruebas frente a pérdida de paquetes}: Se simulará la pérdida de paquetes en la red, lo que puede ocurrir en redes saturadas o de mala calidad. Se probarán los siguientes niveles de pérdida: 
+    \begin{itemize}
+        \item Pérdida baja: 5\% (red local, ideal).
+        \item Perdida alta: 25\% (red común, ADSL, fibra, etc.).
+        \item Pérdida muy alta: 50\% o más (red muy saturada, mala calidad de red).
+    \end{itemize}
+\end{itemize}
+
+\newpage
+
+Para la realización y configuración de las distintas situaciones de red, se utilizará el comando ``tc'' de Linux como ya se ha mencionado anteriormente. 
+\vspace{\baselineskip}
+
+Antes de nada, habrá que observar si hay alguna regla ya aplicada a la interfaz de red. La interfaz de red dependerá de con quien ejecutemos el módulo, si lo ejecutamos en dos instancias de nuestro propio PC, bastará con usar la interfaz \textit{loopback}. En caso de estar ejecutando el módulo junto con otro dispositivo de nuestra red, como es el caso de estas pruebas, habrá que mirar que interfaz de red saliente está utilizando el dispositivo. Para ello, se puede usar el comando ``ip addr'' para ver las interfaces de red disponibles y sus respectivas direcciones IP. 
+
+\vspace{\baselineskip}
+Entonces, una vez mirado la interfaz de red, que en mi caso es \textit{enp0s3}, se procederá a aplicar las reglas de red necesarias para simular las condiciones de red deseadas.
+
+\vspace{\baselineskip}
+
+Primero, habrá que mirar que no hay ninguna regla prestablecida en la interfaz de red. Para ello, se ejecutará el siguiente comando:
+\begin{lstlisting}[language=bash]
+sudo tc qdisc show dev enp0s3
+\end{lstlisting}
+Si no hay ninguna regla, el resultado será algo como así:
+\begin{lstlisting}[language=bash, breaklines=true]
+qdisc fq_codel 0: root refcnt 2 limit 10240p flows 1024 quantum 1514 target 5ms interval 100ms memory_limit 32Mb ecn drop_batch 64 
+\end{lstlisting}
+
+En caso de que hubiera ya alguna regla, se eliminaría con el siguiente comando:
+\begin{lstlisting}[language=bash]
+sudo tc qdisc del dev enp0s3 root
+\end{lstlisting}
+
+Ahora, ya se puede aplicar la regla de red deseada. Para ello, se utilizarán los siguientes comandos:
+
+\begin{itemize}
+    \item Para limitar el ancho de banda a X Mbps, donde X es el valor deseado:
+    \begin{lstlisting}[language=bash, breaklines=true]
+    sudo tc qdisc add dev enp0s3 root tbf rate Xmbit burst 1mbit latency 5000ms
+\end{lstlisting}
+    Donde el valor de \texttt{burst} es el tamaño del paquete máximo que se puede enviar en un momento dado y el valor de \texttt{latency} es el tiempo máximo que se puede esperar para enviar un paquete. En este caso, se ha puesto un valor de 1 Mbit y 5000 ms\footnote{El parámetro \texttt{latency 5000ms} define el tiempo máximo que un paquete puede estar en cola antes de ser descartado. Se usa un valor alto (5 segundos) para evitar que este timeout interfiera con las pruebas de limitación de ancho de banda, asegurando que solo se mida el efecto del parámetro \texttt{rate} que es el que nos interesa.} respectivamente, pero no alterarán el resultado de la prueba.
+    \item Para añadir un retardo de X ms, donde X es el valor deseado:
+    \begin{lstlisting}[language=bash]
+    sudo tc qdisc add dev enp0s3 root netem delay Xms
+\end{lstlisting}
+    \item Para añadir una pérdida de paquetes de X\%, donde X es el valor deseado:
+    \begin{lstlisting}[language=bash]
+    sudo tc qdisc add dev enp0s3 root netem loss X%
+\end{lstlisting}
+\end{itemize}
+
+
+\newpage
+
+\subsubsection{Experimentos sin limitaciones artificiales}
+
+Antes de nada, se mostrará en la Figura~\ref{fig:ejecucion_doble} una ejecución normal de cada módulo implementado para que se observe el funcionamiento y su salida sin ningún tipo de alteración en cada uno de ellos. 
 \vspace{\baselineskip}
 
 Empezaremos por un ejemplo normal de ejecución del módulo \textit{Minimal\_Video} sin ningún tipo de restricción de red.
@@ -35,7 +154,7 @@ Hello from the pygame community. https://www.pygame.org/contribute.html
 Starting in Verbose mode...
 \end{lstlisting}
 
-Seguidamente, se pueden observar un mensaje de que se ha inicializado el vídeo ya que se activó el flag ``--show\_video'' y se ha intentado inicializar la cámara con el índice 1. En este caso, se ha utilizado la cámara del portátil, que es la cámara 0. Si no se encuentra la cámara, se intentará inicializar la cámara con el índice 1. Luego, se ejecuta \textit{Minimal} que es el módulo base que ejecuta el audio el cual proporciona una descripción de distintos parámetros como el chunk\_time, el seconds\_per\_cycle, el chunks\_per\_cycle y el frames\_per\_cycle. Finalmente se indica que se ha iniciado el modo ``verbose''.
+Seguidamente, se pueden observar un mensaje de que se ha inicializado el vídeo ya que se activó el flag \verb|--show_video| y se ha intentado inicializar la cámara con el índice 1. En este caso, se ha utilizado la cámara del portátil, que es la cámara 0. Si no se encuentra la cámara, se intentará inicializar la cámara con el índice 1. Luego, se ejecuta \textit{Minimal} que es el módulo base que ejecuta el audio el cual proporciona una descripción de distintos parámetros como el chunk\_time, el seconds\_per\_cycle, el chunks\_per\_cycle y el frames\_per\_cycle. Finalmente se indica que se ha iniciado el modo ``verbose''.
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\scriptsize]
 Flag --show_video detected. Attempting to initialize camera with index 1...
@@ -257,82 +376,8 @@ QObject::~QObject: Timers cannot be stopped from another thread
 \vspace{\baselineskip}
 
 \newpage
-\subsection{Pruebas de robustez ante degradación de red}
 
-Una vez vista una ejecución estándar de cada uno de los módulos, se procederá a simular distintas condiciones reales de red utilizando la herramienta ``tc''\footnote{Para más información sobre el comando, visitar: https://man7.org/linux/man-pages/man8/tc.8.html} de Linux. Se analizará el comportamiento de \textit{InterCom} bajo diferentes condiciones de ancho de banda, retardo y pérdida de paquetes. Finalmente, se extraerán las conclusiones sobre dicho comportamiento del módulo, así como, la robustez y limitaciones del sistema.
-\vspace{\baselineskip}
-
-A continuación, se comentan los distintos tipos de pruebas que se van realizar en cada subsección de este punto de la memoria:
-\begin{itemize}
-    \item \textbf{Pruebas de limitación de la tasa de transferencia}: Se simulará un ancho de banda limitado para comprobar el rendimiento del sistema bajo condiciones de red restringidas. Se probarán los siguientes anchos de banda:
-    \begin{itemize}
-        \item Ancho de banda muy bajo: 1 Mbps (prueba de una situación casi irreal).
-        \item Ancho de banda bajo: 10 Mbps (situación común en redes WiFi).
-        \item Ancho de banda medio (referencia): 50 Mbps o más (situación común en redes de fibra óptica, suficiente para la correcta ejecución del módulo).
-    \end{itemize}
-    \item \textbf{Pruebas de incremento del jitter} : Se simulará el efecto de una calidad de red variable, congestión o rutas inestables, observando la variación de la latencia (jitter) para analizar la cantidad de paquetes recibidos se pierden. Se probarán los siguientes escenarios con distintos niveles de latencia, lo que hace que se produzcan distintos grados de jitter:
-    \begin{itemize}
-      \item Jitter mínimo (Latencia 0 ms): Condiciones ideales, como una red local estable, donde la variación de latencia es despreciable.
-      \item Jitter moderado (Latencia 100 ms): Simula una red con cierta inestabilidad (e.g., redes domésticas con tráfico variable, conexiones Wi-Fi con interferencias).
-      \item Jitter grave (Latencia 250 ms): Representa condiciones de red muy inestables (e.g., red muy congestionada, enlaces de mala calidad), donde el jitter es alto y la llegada de paquetes es muy errática.
-    \end{itemize}
-    \item \textbf{Pruebas frente a pérdida de paquetes}: Se simulará la pérdida de paquetes en la red, lo que puede ocurrir en redes saturadas o de mala calidad. Se probarán los siguientes niveles de pérdida: 
-    \begin{itemize}
-        \item Pérdida baja: 5\% (red local, ideal).
-        \item Perdida alta: 25\% (red común, ADSL, fibra, etc.).
-        \item Pérdida muy alta: 50\% o más (red muy saturada, mala calidad de red).
-    \end{itemize}
-\end{itemize}
-
-\newpage
-
-\subsection{Resultados de las pruebas}
-Para la realización y configuración de las distintas situaciones de red, se utilizará el comando ``tc'' de Linux como ya se ha mencionado anteriormente. 
-\vspace{\baselineskip}
-
-Antes de nada, habrá que observar si hay alguna regla ya aplicada a la interfaz de red. La interfaz de red dependerá de con quien ejecutemos el módulo, si lo ejecutamos en dos instancias de nuestro propio PC, bastará con usar la interfaz \textit{loopback}. En caso de estar ejecutando el módulo junto con otro dispositivo de nuestra red, como es el caso de estas pruebas, habrá que mirar que interfaz de red saliente está utilizando el dispositivo. Para ello, se puede usar el comando ``ip addr'' para ver las interfaces de red disponibles y sus respectivas direcciones IP. 
-
-\vspace{\baselineskip}
-Entonces, una vez mirado la interfaz de red, que en mi caso es \textit{enp0s3}, se procederá a aplicar las reglas de red necesarias para simular las condiciones de red deseadas.
-
-\vspace{\baselineskip}
-
-Primero, habrá que mirar que no hay ninguna regla prestablecida en la interfaz de red. Para ello, se ejecutará el siguiente comando:
-\begin{lstlisting}[language=bash]
-sudo tc qdisc show dev enp0s3
-\end{lstlisting}
-Si no hay ninguna regla, el resultado será algo como así:
-\begin{lstlisting}[language=bash, breaklines=true]
-qdisc fq_codel 0: root refcnt 2 limit 10240p flows 1024 quantum 1514 target 5ms interval 100ms memory_limit 32Mb ecn drop_batch 64 
-\end{lstlisting}
-
-En caso de que hubiera ya alguna regla, se eliminaría con el siguiente comando:
-\begin{lstlisting}[language=bash]
-sudo tc qdisc del dev enp0s3 root
-\end{lstlisting}
-
-Ahora, ya se puede aplicar la regla de red deseada. Para ello, se utilizarán los siguientes comandos:
-
-\begin{itemize}
-    \item Para limitar el ancho de banda a X Mbps, donde X es el valor deseado:
-    \begin{lstlisting}[language=bash, breaklines=true]
-    sudo tc qdisc add dev enp0s3 root tbf rate Xmbit burst 1mbit latency 5000ms
-\end{lstlisting}
-    Donde el valor de \texttt{burst} es el tamaño del paquete máximo que se puede enviar en un momento dado y el valor de \texttt{latency} es el tiempo máximo que se puede esperar para enviar un paquete. En este caso, se ha puesto un valor de 1 Mbit y 5000 ms\footnote{El parámetro \texttt{latency 5000ms} define el tiempo máximo que un paquete puede estar en cola antes de ser descartado. Se usa un valor alto (5 segundos) para evitar que este timeout interfiera con las pruebas de limitación de ancho de banda, asegurando que solo se mida el efecto del parámetro \texttt{rate} que es el que nos interesa.} respectivamente, pero no alterarán el resultado de la prueba.
-    \item Para añadir un retardo de X ms, donde X es el valor deseado:
-    \begin{lstlisting}[language=bash]
-    sudo tc qdisc add dev enp0s3 root netem delay Xms
-\end{lstlisting}
-    \item Para añadir una pérdida de paquetes de X\%, donde X es el valor deseado:
-    \begin{lstlisting}[language=bash]
-    sudo tc qdisc add dev enp0s3 root netem loss X%
-\end{lstlisting}
-\end{itemize}
-
-
-\newpage
-
-\subsubsection{Pruebas de limitación de la tasa de transferencia}
+\subsubsection{Experimentos con limitación de la tasa de transferencia de datos}
 
 En esta sección se presentan los resultados obtenidos al ejecutar los módulos bajo diferentes condiciones de ancho de banda. 
 \vspace{\baselineskip}
@@ -349,7 +394,7 @@ Empezaremos por probar el módulo con un ancho de banda muy bajo, 1 Mbps. El com
 \begin{lstlisting}[language=bash]
 python minimal_video.py -a 192.168.0.58 --show_video --show_stats
 \end{lstlisting}
-Donde ``-a'' es la dirección IP del dispositivo con el que se va a comunicar el módulo, ``--show\_video'' es la opción para mostrar el vídeo en tiempo real y ``--show\_stats'' es la opción para mostrar las estadísticas de la red.
+Donde \verb|-a| es la dirección IP del dispositivo con el que se va a comunicar el módulo, \verb|--show_video| es la opción para mostrar el vídeo en tiempo real y \verb|--show_stats| es la opción para mostrar las estadísticas de la red.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -540,7 +585,7 @@ Ahora, ejecutaremos el módulo \textit{Minimal\_Video\_FPS} con el mismo ancho d
     python minimal_video_fps.py -a 192.168.0.58 --show_video --show_stats -z 12
 \end{lstlisting}
 
-Donde ``a'' es la dirección IP destino, ``show\_video'' es para que se active la transmisión de vídeo, ``show\_stats'' es para que se muestre la información de estadísticas y ``z'' es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
+Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
 
 A continuación, se probará el módulo con un ancho de banda muy bajo, de 1 Mbps. El resultado obtenido ha sido el siguiente:
 \vspace{\baselineskip}
@@ -724,7 +769,7 @@ Finalmente, se ejecutará el módulo \textit{Minimal\_Video\_Resolution} con el 
 python minimal_video_resolution.py -a 192.168.0.58 --show_video --show_stats -z 12 \\
 -w 350 -g 250
 \end{lstlisting}
-Donde ``a'' indica la dirección IP destino, ``show\_video'' indica que se active la transmisión de vídeo, ``show\_stats'' indica que se muestren las estadísticas de la transmisión, ``z'' indica el número de fotogramas por segundo (FPS), ``w'' indica el ancho del vídeo y ``g'' indica la altura del vídeo.
+Donde \verb|-a| indica la dirección IP destino, \verb|--show_video| indica que se active la transmisión de vídeo, \verb|--show_stats| indica que se muestren las estadísticas de la transmisión, \verb|-z| indica el número de fotogramas por segundo (FPS), \verb|-w| indica el ancho del vídeo y \verb|-g| indica la altura del vídeo.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -945,7 +990,7 @@ Empezaremos por probar el módulo con un ancho de banda bajo, 10 Mbps. El comand
 \begin{lstlisting}[language=bash]
 python minimal_video.py -a 192.168.0.58 --show_video --show_stats
 \end{lstlisting}
-Donde ``-a'' es la dirección IP del dispositivo con el que se va a comunicar el módulo, ``--show\_video'' es la opción para mostrar el vídeo en tiempo real y ``--show\_stats'' es la opción para mostrar las estadísticas de la red.
+Donde \verb|-a| es la dirección IP del dispositivo con el que se va a comunicar el módulo, \verb|--show_video| es la opción para mostrar el vídeo en tiempo real y \verb|--show_stats| es la opción para mostrar las estadísticas de la red.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -1041,7 +1086,7 @@ Ahora, ejecutaremos el módulo \textit{Minimal\_Video\_FPS} con el mismo ancho d
 \begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
     python minimal_video_fps.py -a 192.168.0.58 --show_video --show_stats -z 12
 \end{lstlisting}
-Donde ``a'' es la dirección IP destino, ``show\_video'' es para que se active la transmisión de vídeo, ``show\_stats'' es para que se muestre la información de estadísticas y ``z'' es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
+Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
 
 A continuación, se probará el módulo con un ancho de banda bajo, de 10 Mbps. El resultado obtenido ha sido el siguiente:
 \vspace{\baselineskip}
@@ -1124,7 +1169,7 @@ Finalmente, se ejecutará el módulo \textit{Minimal\_Video\_Resolution} con el 
 python minimal_video_resolution.py -a 192.168.0.58 --show_video --show_stats -z 12 \\
 -w 350 -g 250
 \end{lstlisting}
-Donde ``a'' indica la dirección IP destino, ``show\_video'' indica que se active la transmisión de vídeo, ``show\_stats'' indica que se muestren las estadísticas de la transmisión, ``z'' indica el número de fotogramas por segundo (FPS), ``w'' indica el ancho del vídeo y ``g'' indica la altura del vídeo.
+Donde \verb|-a| indica la dirección IP destino, \verb|--show_video| indica que se active la transmisión de vídeo, \verb|--show_stats| indica que se muestren las estadísticas de la transmisión, \verb|-z| indica el número de fotogramas por segundo (FPS), \verb|-w| indica el ancho del vídeo y \verb|-g| indica la altura del vídeo.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -1370,7 +1415,7 @@ Empezaremos por probar el módulo con un ancho de banda alto, 50 Mbps. El comand
 \begin{lstlisting}[language=bash]
 python minimal_video.py -a 192.168.0.58 --show_video --show_stats
 \end{lstlisting}
-Donde ``-a'' es la dirección IP del dispositivo con el que se va a comunicar el módulo, ``--show\_video'' es la opción para mostrar el vídeo en tiempo real y ``--show\_stats'' es la opción para mostrar las estadísticas de la red.
+Donde \verb|-a| es la dirección IP del dispositivo con el que se va a comunicar el módulo, \verb|--show_video| es la opción para mostrar el vídeo en tiempo real y \verb|--show_stats| es la opción para mostrar las estadísticas de la red.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -1423,7 +1468,7 @@ Ahora, ejecutaremos el módulo \textit{Minimal\_Video\_FPS} con el mismo ancho d
 \begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
     python minimal_video_fps.py -a 192.168.0.58 --show_video --show_stats -z 12
 \end{lstlisting}
-Donde ``a'' es la dirección IP destino, ``show\_video'' es para que se active la transmisión de vídeo, ``show\_stats'' es para que se muestre la información de estadísticas y ``z'' es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
+Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -1483,7 +1528,7 @@ Finalmente, se ejecutará el módulo \textit{Minimal\_Video\_Resolution} con el 
 python minimal_video_resolution.py -a 192.168.0.58 --show_video --show_stats -z 12 \\
 -w 350 -g 250
 \end{lstlisting}
-Donde ``a'' indica la dirección IP destino, ``show\_video'' indica que se active la transmisión de vídeo, ``show\_stats'' indica que se muestren las estadísticas de la transmisión, ``z'' indica el número de fotogramas por segundo (FPS), ``w'' indica el ancho del vídeo y ``g'' indica la altura del vídeo.
+Donde \verb|-a| indica la dirección IP destino, \verb|--show_video| indica que se active la transmisión de vídeo, \verb|--show_stats| indica que se muestren las estadísticas de la transmisión, \verb|-z| indica el número de fotogramas por segundo (FPS), \verb|-w| indica el ancho del vídeo y \verb|-g| indica la altura del vídeo.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -1610,12 +1655,12 @@ La ejecución de los módulos con un ancho de banda de 50 Mbps muestra un rendim
 Esta prueba demuestra que un ancho de banda de 50 Mbps es suficiente para una experiencia de videollamada de buena calidad, especialmente con el módulo base. Para los módulos con control de FPS, aunque la calidad mejora sustancialmente, el no alcanzar el objetivo de 12 FPS sugiere que otros factores además del ancho de banda de red entran en juego.
 \newpage
 
-\subsubsection{Pruebas de incremento del jitter}
+\subsubsection{Experimentos con jitter}
 
 En esta sección, se analizarán los resultados obtenidos al aplicar una limitación de latencia (delay) a los distintos módulos.
 
 \begin{itemize}
-    \item \textbf{Pruebas con incremento del jitter)}
+    \item \textbf{Pruebas con jitter)}
 \end{itemize}
 
 \textbf{Pruebas con jitter mínimo (Latencia ideal de 0 ms)}
@@ -1629,7 +1674,7 @@ Comenzamos probando con una latencia ideal de 0 ms, lo que implica un jitter mí
 \begin{lstlisting}[language=bash]
 python minimal_video.py -a 192.168.0.58 --show_video --show_stats
 \end{lstlisting}
-Donde ``-a'' es la dirección IP del dispositivo con el que se va a comunicar el módulo, ``--show\_video'' es la opción para mostrar el vídeo en tiempo real y ``--show\_stats'' es la opción para mostrar las estadísticas de la red.
+Donde \verb|-a| es la dirección IP del dispositivo con el que se va a comunicar el módulo, \verb|--show_video| es la opción para mostrar el vídeo en tiempo real y \verb|--show_stats| es la opción para mostrar las estadísticas de la red.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -1682,7 +1727,7 @@ Ahora, ejecutaremos el módulo \textit{Minimal\_Video\_FPS} con la misma latenci
 \begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
     python minimal_video_fps.py -a 192.168.0.58 --show_video --show_stats -z 12
 \end{lstlisting}
-Donde ``a'' es la dirección IP destino, ``show\_video'' es para que se active la transmisión de vídeo, ``show\_stats'' es para que se muestre la información de estadísticas y ``z'' es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
+Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
 \vspace{\baselineskip}
 
 
@@ -1741,7 +1786,7 @@ Finalmente, se ejecutará el módulo \textit{Minimal\_Video\_Resolution} con la 
 python minimal_video_resolution.py -a 192.168.0.58 --show_video --show_stats -z 12 \\
 -w 350 -g 250
 \end{lstlisting}
-Donde ``a'' indica la dirección IP destino, ``show\_video'' indica que se active la transmisión de vídeo, ``show\_stats'' indica que se muestren las estadísticas de la transmisión, ``z'' indica el número de fotogramas por segundo (FPS), ``w'' indica el ancho del vídeo y ``g'' indica la altura del vídeo.
+Donde \verb|-a| indica la dirección IP destino, \verb|--show_video| indica que se active la transmisión de vídeo, \verb|--show_stats| indica que se muestren las estadísticas de la transmisión, \verb|-z| indica el número de fotogramas por segundo (FPS), \verb|-w| indica el ancho del vídeo y \verb|-g| indica la altura del vídeo.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -1873,7 +1918,7 @@ El comando usado para \textit{Minimal\_Video} ha sido el siguiente:
 \begin{lstlisting}[language=bash]
 python minimal_video.py -a 192.168.0.58 --show_video --show_stats
 \end{lstlisting}
-Donde ``-a'' es la dirección IP del dispositivo con el que se va a comunicar el módulo, ``--show\_video'' es la opción para mostrar el vídeo en tiempo real y ``--show\_stats'' es la opción para mostrar las estadísticas de la red.
+Donde \verb|-a| es la dirección IP del dispositivo con el que se va a comunicar el módulo, \verb|--show_video| es la opción para mostrar el vídeo en tiempo real y \verb|--show_stats| es la opción para mostrar las estadísticas de la red.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -1926,7 +1971,7 @@ Ahora, ejecutaremos el módulo \textit{Minimal\_Video\_FPS} con una latencia bas
 \begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
     python minimal_video_fps.py -a 192.168.0.58 --show_video --show_stats -z 12
 \end{lstlisting}
-Donde ``a'' es la dirección IP destino, ``show\_video'' es para que se active la transmisión de vídeo, ``show\_stats'' es para que se muestre la información de estadísticas y ``z'' es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
+Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -1985,7 +2030,7 @@ Finalmente, se ejecutará el módulo \textit{Minimal\_Video\_Resolution} con una
 python minimal_video_resolution.py -a 192.168.0.58 --show_video --show_stats -z 12 \\
 -w 350 -g 250
 \end{lstlisting}
-Donde ``a'' indica la dirección IP destino, ``show\_video'' indica que se active la transmisión de vídeo, ``show\_stats'' indica que se muestren las estadísticas de la transmisión, ``z'' indica el número de fotogramas por segundo (FPS), ``w'' indica el ancho del vídeo y ``g'' indica la altura del vídeo.
+Donde \verb|-a| indica la dirección IP destino, \verb|--show_video| indica que se active la transmisión de vídeo, \verb|--show_stats| indica que se muestren las estadísticas de la transmisión, \verb|-z| indica el número de fotogramas por segundo (FPS), \verb|-w| indica el ancho del vídeo y \verb|-g| indica la altura del vídeo.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -2122,7 +2167,7 @@ El comando usado para \textit{Minimal\_Video} ha sido el siguiente:
 \begin{lstlisting}[language=bash]
 python minimal_video.py -a 192.168.0.58 --show_video --show_stats
 \end{lstlisting}
-Donde ``-a'' es la dirección IP del dispositivo con el que se va a comunicar el módulo, ``--show\_video'' es la opción para mostrar el vídeo en tiempo real y ``--show\_stats'' es la opción para mostrar las estadísticas de la red.
+Donde \verb|-a| es la dirección IP del dispositivo con el que se va a comunicar el módulo, \verb|--show_video| es la opción para mostrar el vídeo en tiempo real y \verb|--show_stats| es la opción para mostrar las estadísticas de la red.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -2176,7 +2221,7 @@ Ahora, se ejecutará el módulo \textit{Minimal\_Video\_FPS} con una latencia ba
 \begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
     python minimal_video_fps.py -a 192.168.0.58 --show_video --show_stats -z 12
 \end{lstlisting}
-Donde ``a'' es la dirección IP destino, ``show\_video'' es para que se active la transmisión de vídeo, ``show\_stats'' es para que se muestre la información de estadísticas y ``z'' es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
+Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -2236,7 +2281,7 @@ Ahora, se procederá a ejecutar el módulo \textit{Minimal\_Video\_Resolution} c
 python minimal_video_resolution.py -a 192.168.0.58 --show_video --show_stats -z 12 \\
 -w 350 -g 250
 \end{lstlisting}
-Donde ``a'' indica la dirección IP destino, ``show\_video'' indica que se active la transmisión de vídeo, ``show\_stats'' indica que se muestren las estadísticas de la transmisión, ``z'' indica el número de fotogramas por segundo (FPS), ``w'' indica el ancho del vídeo y ``g'' indica la altura del vídeo.
+Donde \verb|-a| indica la dirección IP destino, \verb|--show_video| indica que se active la transmisión de vídeo, \verb|--show_stats| indica que se muestren las estadísticas de la transmisión, \verb|-z| indica el número de fotogramas por segundo (FPS), \verb|-w| indica el ancho del vídeo y \verb|-g| indica la altura del vídeo.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -2363,7 +2408,7 @@ Una latencia base de 250ms, con el jitter severo asociado, establece condiciones
 Estos resultados demuestran que, si bien una latencia base alta y un jitter severo perjudican gravemente la calidad percibida de una videollamada, los módulos pueden seguir transmitiendo una cantidad considerable de datos y mantener una tasa de fotogramas promedio funcional. La clave está en la irregularidad de la entrega, que es el principal obstáculo para una experiencia de usuario satisfactoria.
 \newpage
 
-\subsubsection{Pruebas frente a pérdida de paquetes}
+\subsubsection{Experimentos con pérdida de paquetes}
 
 Ahora, se procederá a analizar los resultados obtenidos en las pruebas realizadas con pérdida de paquetes. 
 \vspace{\baselineskip}
@@ -2379,7 +2424,7 @@ Comenzaremos con una pérdida del 5\% de paquetes. El comando usado en \textit{M
 \begin{lstlisting}[language=bash]
 python minimal_video.py -a 192.168.0.58 --show_video --show_stats
 \end{lstlisting}
-Donde ``-a'' es la dirección IP del dispositivo con el que se va a comunicar el módulo, ``--show\_video'' es la opción para mostrar el vídeo en tiempo real y ``--show\_stats'' es la opción para mostrar las estadísticas de la red.
+Donde \verb|-a| es la dirección IP del dispositivo con el que se va a comunicar el módulo, \verb|--show_video| es la opción para mostrar el vídeo en tiempo real y \verb|--show_stats| es la opción para mostrar las estadísticas de la red.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -2434,7 +2479,7 @@ Ahora, se ejecutará el módulo \textit{Minimal\_Video\_FPS} con una pérdida de
 \begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
     python minimal_video_fps.py -a 192.168.0.58 --show_video --show_stats -z 12
 \end{lstlisting}
-Donde ``a'' es la dirección IP destino, ``show\_video'' es para que se active la transmisión de vídeo, ``show\_stats'' es para que se muestre la información de estadísticas y ``z'' es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
+Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -2495,7 +2540,7 @@ Ahora, se procederá a ejecutar el módulo \textit{Minimal\_Video\_Resolution} c
 python minimal_video_resolution.py -a 192.168.0.58 --show_video --show_stats -z 12 \\
 -w 350 -g 250
 \end{lstlisting}
-Donde ``a'' indica la dirección IP destino, ``show\_video'' indica que se active la transmisión de vídeo, ``show\_stats'' indica que se muestren las estadísticas de la transmisión, ``z'' indica el número de fotogramas por segundo (FPS), ``w'' indica el ancho del vídeo y ``g'' indica la altura del vídeo.
+Donde \verb|-a| indica la dirección IP destino, \verb|--show_video| indica que se active la transmisión de vídeo, \verb|--show_stats| indica que se muestren las estadísticas de la transmisión, \verb|-z| indica el número de fotogramas por segundo (FPS), \verb|-w| indica el ancho del vídeo y \verb|-g| indica la altura del vídeo.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -2619,7 +2664,7 @@ La prueba con una pérdida de paquetes moderada del 5\% revela cómo los diferen
 \item \textbf{Mecanismos de adaptación:} Los módulos con control de FPS parecen adaptarse a las pérdidas reduciendo la tasa de fotogramas efectiva para intentar asegurar que los fotogramas que se envían y reciben estén lo más completos posible, especialmente \textit{Minimal\_Video\_Resolution} que logra la menor tasa de pérdida de vídeo.
 \end{itemize}
 
-Estos resultados indican que una pérdida de paquetes del 5\% es un pequeño obstaculo para la comunicación en tiempo real. Aunque los módulos con control de FPS aguantan en la transmisión del audio y una pérdida de vídeo contenida, la fluidez se ve considerablemente afectada.
+Estos resultados indican que una pérdida de paquetes del 5\% es un pequeño obstáculo para la comunicación en tiempo real. Aunque los módulos con control de FPS aguantan en la transmisión del audio y una pérdida de vídeo contenida, la fluidez se ve considerablemente afectada.
 \newpage
 
 \textbf{Pruebas frente a pérdida de paquetes del 25\%:}
@@ -2630,7 +2675,7 @@ Ahora, realizaremos las pruebas con una pérdida del 25\% de paquetes. El comand
 \begin{lstlisting}[language=bash]
 python minimal_video.py -a 192.168.0.58 --show_video --show_stats
 \end{lstlisting}
-Donde ``-a'' es la dirección IP del dispositivo con el que se va a comunicar el módulo, ``--show\_video'' es la opción para mostrar el vídeo en tiempo real y ``--show\_stats'' es la opción para mostrar las estadísticas de la red.
+Donde \verb|-a| es la dirección IP del dispositivo con el que se va a comunicar el módulo, \verb|--show_video| es la opción para mostrar el vídeo en tiempo real y \verb|--show_stats| es la opción para mostrar las estadísticas de la red.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -2684,7 +2729,7 @@ Ahora, se ejecutará el módulo \textit{Minimal\_Video\_FPS} con una pérdida de
 \begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
     python minimal_video_fps.py -a 192.168.0.58 --show_video --show_stats -z 12
 \end{lstlisting}
-Donde ``a'' es la dirección IP destino, ``show\_video'' es para que se active la transmisión de vídeo, ``show\_stats'' es para que se muestre la información de estadísticas y ``z'' es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
+Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -2745,7 +2790,7 @@ Ahora, se procederá a ejecutar el módulo \textit{Minimal\_Video\_Resolution} c
 python minimal_video_resolution.py -a 192.168.0.58 --show_video --show_stats -z 12 \\
 -w 350 -g 250
 \end{lstlisting}
-Donde ``a'' indica la dirección IP destino, ``show\_video'' indica que se active la transmisión de vídeo, ``show\_stats'' indica que se muestren las estadísticas de la transmisión, ``z'' indica el número de fotogramas por segundo (FPS), ``w'' indica el ancho del vídeo y ``g'' indica la altura del vídeo.
+Donde \verb|-a| indica la dirección IP destino, \verb|--show_video| indica que se active la transmisión de vídeo, \verb|--show_stats| indica que se muestren las estadísticas de la transmisión, \verb|-z| indica el número de fotogramas por segundo (FPS), \verb|-w| indica el ancho del vídeo y \verb|-g| indica la altura del vídeo.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -2879,7 +2924,7 @@ Finalmente, realizaremos la última prueba por una pérdida del 50\% de paquetes
 \begin{lstlisting}[language=bash]
 python minimal_video.py -a 192.168.0.58 --show_video --show_stats
 \end{lstlisting}
-Donde ``-a'' es la dirección IP del dispositivo con el que se va a comunicar el módulo, ``--show\_video'' es la opción para mostrar el vídeo en tiempo real y ``--show\_stats'' es la opción para mostrar las estadísticas de la red.
+Donde \verb|-a| es la dirección IP del dispositivo con el que se va a comunicar el módulo, \verb|--show_video| es la opción para mostrar el vídeo en tiempo real y \verb|--show_stats| es la opción para mostrar las estadísticas de la red.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -2931,7 +2976,7 @@ Ahora, se procederá a ejecutar el módulo \textit{Minimal\_Video\_FPS} con una 
 \begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
     python minimal_video_fps.py -a 192.168.0.58 --show_video --show_stats -z 12
 \end{lstlisting}
-Donde ``a'' es la dirección IP destino, ``show\_video'' es para que se active la transmisión de vídeo, ``show\_stats'' es para que se muestre la información de estadísticas y ``z'' es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
+Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -2985,6 +3030,12 @@ La imagen de la Figura \ref{fig:minimal_video_fps_50percent} es una captura del 
 
 
 Ahora, se procederá a ejecutar el módulo \textit{Minimal\_Video\_Resolution} con una pérdida del 50\% de paquetes. El comando usado ha sido el siguiente:
+\begin{lstlisting}[language=bash,basicstyle=\ttfamily\scriptsize]
+python minimal_video_resolution.py -a 192.168.0.58 --show_video --show_stats -z 12 \\
+-w 350 -g 250
+\end{lstlisting}
+Donde \verb|-a| indica la dirección IP destino, \verb|--show_video| indica que se active la transmisión de vídeo, \verb|--show_stats| indica que se muestren las estadísticas de la transmisión, \verb|-z| indica el número de fotogramas por segundo (FPS), \verb|-w| indica el ancho del vídeo y \verb|-g| indica la altura del vídeo.
+\vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
          |  AUDIO (msg)  |  VIDEO (msg)  |  AUDIO (kbps)   |  VIDEO (kbps)   |     CPU (%) 
@@ -3125,44 +3176,72 @@ Estos resultados demuestran que una pérdida de paquetes del 50\% resulta en la 
     \makecell[tc]{\textbf{\footnotesize 5\%}} & \makecell[tc]{\textbf{\footnotesize 25\%}} & \makecell[tc]{\textbf{\footnotesize 50\%}} \\
     \hline
     Minimal\_Video & 
-    AS:954.02\newline AR:345.96\newline VS:1771.67\newline VR:762.21 &
-    AS:860.65\newline AR:798.34\newline VS:5481.62\newline VR:4927.59 &
-    AS:1000.25\newline AR:966.08\newline VS:8587.79\newline VR:7898.40 &
-    AS:882.48\newline AR:799.36\newline VS:6587.96\newline VR:6353.34 &
-    AS:962.34\newline AR:923.46\newline VS:11432.49\newline VR:10215.23 &
-    AS:956.82\newline AR:929.90\newline VS:11274.19\newline VR:10111.51 &
-    AS:937.22\newline AR:898.27\newline VS:6708.33\newline VR:6244.18 &
-    AS:1002.06\newline AR:438.86\newline VS:3977.00\newline VR:2476.75 &
-    AS:984.90\newline AR:174.74\newline VS:3425.69\newline VR:1773.91 \\
+    AT:954.02\newline AR:345.96\newline VT:1771.67\newline VR:762.21 &
+    AT:860.65\newline AR:798.34\newline VT:5481.62\newline VR:4927.59 &
+    AT:1000.25\newline AR:966.08\newline VT:8587.79\newline VR:7898.40 &
+    AT:882.48\newline AR:799.36\newline VT:6587.96\newline VR:6353.34 &
+    AT:962.34\newline AR:923.46\newline VT:11432.49\newline VR:10215.23 &
+    AT:956.82\newline AR:929.90\newline VT:11274.19\newline VR:10111.51 &
+    AT:937.22\newline AR:898.27\newline VT:6708.33\newline VR:6244.18 &
+    AT:1002.06\newline AR:438.86\newline VT:3977.00\newline VR:2476.75 &
+    AT:984.90\newline AR:174.74\newline VT:3425.69\newline VR:1773.91 \\
     \hline
     Minimal\_Video\_FPS & 
-    AS:867.25\newline AR:391.50\newline VS:1862.96\newline VR:593.89\newline FPS R:1.0\newline FPS E:8.3\% &
-    AS:980.18\newline AR:939.41\newline VS:2191.73\newline VR:1973.56\newline FPS R:1.2\newline FPS E:9.9\% &
-    AS:976.67\newline AR:923.22\newline VS:8209.75\newline VR:7629.43\newline FPS R:5.0\newline FPS E:41.5\% &
-    AS:955.12\newline AR:911.37\newline VS:7834.12\newline VR:7395.49\newline FPS R:5.4\newline FPS E:45.2\% &
-    AS:936.37\newline AR:936.37\newline VS:13682.08\newline VR:13276.25\newline FPS R:11.4\newline FPS E:95.0\% &
-    AS:945.70\newline AR:938.35\newline VS:9929.23\newline VR:9173.34\newline FPS R:8.3\newline FPS E:69.1\% &
-    AS:833.44\newline AR:833.44\newline VS:7869.79\newline VR:7498.43\newline FPS R:5.7\newline FPS E:47.3\% &
-    AS:877.05\newline AR:419.06\newline VS:3988.65\newline VR:3078.19\newline FPS R:3.0\newline FPS E:25.2\% &
-    AS:1070.38\newline AR:170.11\newline VS:3215.71\newline VR:1526.27\newline FPS R:1.7\newline FPS E:14.0\% \\
+    AT:867.25\newline AR:391.50\newline VT:1862.96\newline VR:593.89\newline FPS~R:1.0\newline FPS~E:8.3\% &
+    AT:980.18\newline AR:939.41\newline VT:2191.73\newline VR:1973.56\newline FPS~R:1.2\newline FPS~E:9.9\% &
+    AT:976.67\newline AR:923.22\newline VT:8209.75\newline VR:7629.43\newline FPS~R:5.0\newline FPS~E:41.5\% &
+    AT:955.12\newline AR:911.37\newline VT:7834.12\newline VR:7395.49\newline FPS~R:5.4\newline FPS~E:45.2\% &
+    AT:936.37\newline AR:936.37\newline VT:13682.08\newline VR:13276.25\newline FPS~R:11.4\newline FPS~E:95.0\% &
+    AT:945.70\newline AR:938.35\newline VT:9929.23\newline VR:9173.34\newline FPS~R:8.3\newline FPS~E:69.1\% &
+    AT:833.44\newline AR:833.44\newline VT:7869.79\newline VR:7498.43\newline FPS~R:5.7\newline FPS~E:47.3\% &
+    AT:877.05\newline AR:419.06\newline VT:3988.65\newline VR:3078.19\newline FPS~R:3.0\newline FPS~E:25.2\% &
+    AT:1070.38\newline AR:170.11\newline VT:3215.71\newline VR:1526.27\newline FPS~R:1.7\newline FPS~E:14.0\% \\
     \hline
     Minimal\_Video\_Resolution & 
-    AS:738.20\newline AR:360.10\newline VS:2311.06\newline VR:664.16\newline FPS R:1.1\newline FPS E:8.9\%\newline TR:6.47ms\newline IR:7.8\% &
-    AS:546.99\newline AR:546.99\newline VS:3477.81\newline VR:3234.63\newline FPS R:1.6\newline FPS E:13.7\%\newline TR:6.47ms\newline IR:7.8\% &
-    AS:904.14\newline AR:752.51\newline VS:7688.82\newline VR:6840.18\newline FPS R:3.6\newline FPS E:29.8\%\newline TR:5.53ms\newline IR:6.6\% &
-    AS:933.82\newline AR:933.82\newline VS:7866.30\newline VR:7599.87\newline FPS R:5.2\newline FPS E:43.0\%\newline TR:3.06ms\newline IR:3.7\% &
-    AS:896.90\newline AR:860.39\newline VS:12506.10\newline VR:11479.56\newline FPS R:6.6\newline FPS E:55.4\%\newline TR:5.67ms\newline IR:6.8\% &
-    AS:932.17\newline AR:910.32\newline VS:10691.15\newline VR:9532.74\newline FPS R:6.0\newline FPS E:50.3\%\newline TR:6.43ms\newline IR:7.7\% &
-    AS:877.27\newline AR:877.27\newline VS:7252.29\newline VR:7060.40\newline FPS R:5.0\newline FPS E:42.1\%\newline TR:5.30ms\newline IR:6.4\% &
-    AS:948.40\newline AR:487.54\newline VS:4352.12\newline VR:3244.00\newline FPS R:2.1\newline FPS E:17.3\%\newline TR:3.98ms\newline IR:4.8\% &
-    AS:931.34\newline AR:135.82\newline VS:3267.15\newline VR:1713.44\newline FPS R:1.5\newline FPS E:12.7\%\newline TR:2.81ms\newline IR:3.4\% \\
+    AT:738.20\newline AR:360.10\newline VT:2311.06\newline VR:664.16\newline FPS~R:1.1\newline FPS~E:8.9\%\newline TR:6.47ms\newline IR:7.8\% &
+    AT:546.99\newline AR:546.99\newline VT:3477.81\newline VR:3234.63\newline FPS~R:1.6\newline FPS~E:13.7\%\newline TR:6.47ms\newline IR:7.8\% &
+    AT:904.14\newline AR:752.51\newline VT:7688.82\newline VR:6840.18\newline FPS~R:3.6\newline FPS~E:29.8\%\newline TR:5.53ms\newline IR:6.6\% &
+    AT:933.82\newline AR:933.82\newline VT:7866.30\newline VR:7599.87\newline FPS~R:5.2\newline FPS~E:43.0\%\newline TR:3.06ms\newline IR:3.7\% &
+    AT:896.90\newline AR:860.39\newline VT:12506.10\newline VR:11479.56\newline FPS~R:6.6\newline FPS~E:55.4\%\newline TR:5.67ms\newline IR:6.8\% &
+    AT:932.17\newline AR:910.32\newline VT:10691.15\newline VR:9532.74\newline FPS~R:6.0\newline FPS~E:50.3\%\newline TR:6.43ms\newline IR:7.7\% &
+    AT:877.27\newline AR:877.27\newline VT:7252.29\newline VR:7060.40\newline FPS~R:5.0\newline FPS~E:42.1\%\newline TR:5.30ms\newline IR:6.4\% &
+    AT:948.40\newline AR:487.54\newline VT:4352.12\newline VR:3244.00\newline FPS~R:2.1\newline FPS~E:17.3\%\newline TR:3.98ms\newline IR:4.8\% &
+    AT:931.34\newline AR:135.82\newline VT:3267.15\newline VR:1713.44\newline FPS~R:1.5\newline FPS~E:12.7\%\newline TR:2.81ms\newline IR:3.4\% \\
     \hline
-    \multicolumn{10}{l}{\textit{\footnotesize AS: Audio Enviado, AR: Audio Recibido, VS: Vídeo Enviado, VR: Vídeo Recibido (kbps).}}\\
+    \multicolumn{10}{l}{\textit{\footnotesize AT: Audio Transmitido, AR: Audio Recibido, VT: Vídeo Transmitido, VR: Vídeo Recibido (kbps).}}\\
     \multicolumn{10}{l}{\textit{\footnotesize FPS R: FPS Real Promedio, FPS E: Eficiencia de FPS (\%). TR: Tiempo Reescalado (ms). IR: Impacto en Rendimiento (\%).}}
     \end{tabularx}
-    \caption{Resumen de Pruebas de Rendimiento y Red.}
+    \caption{Resumen de los experimentos realizados.}
     \label{tab:resumen_pruebas_globales}
 \end{table}
+\vspace{\baselineskip}
+
+Definiciones de distintos términos usados en la tabla:
+\begin{itemize}
+    \item \textbf{FPS real promedio:} Es el promedio de FPS reales recibidos durante la transmisión.
+    
+    \begin{center}
+      \boxed{ \text{FPS}_R = \frac{\sum^n_{i=1}~\text{FPS}_{\text{recibidos},i}}{N}}
+    \end{center}
+
+    Donde \(N\) es el número total de ciclos y \(\text{FPS}_{\text{recibidos},i}\) es el FPS recibido en el ciclo \(i\).
+
+    \item \textbf{Eficiencia de FPS:} Es el porcentaje de cuadros por segundo recibidos respecto a los cuadros por segundo que deberían haberse transmitido. 
+    
+    \begin{center}
+      \boxed{\text{FPS}_E = \frac{\text{FPS}_R}{\text{FPS}\text{~ideal}} \times 100}
+    \end{center}
+    
+    Donde \(\text{FPS}_R\) es el FPS real promedio y \(\text{FPS}\text{~ideal}\) es el FPS objetivo configurado para la transmisión.
+
+    \item \textbf{Impacto en rendimiento:} Es el porcentaje de tiempo adicional que toma reescalar el vídeo respecto al tiempo total de procesamiento del ciclo. 
+ 
+    \begin{center}
+      \boxed{\text{IR} = \left(1 - \frac{\text{VR}}{\text{VT}}\right) \times 100}
+    \end{center}
+    Donde \(\text{VR}\) es el video recibido y \(\text{VT}\) es el video transmitido.
+    
+\end{itemize}
 
 \newpage
 

@@ -5,7 +5,7 @@
 El presente Trabajo Fin de Grado parte de un programa ya preexistente que se usa y estudia en la asignatura Tecnologías Multimedia, el cual se llama \textit{Intercom}. \textit{Intercom} es una solución de comunicación bidireccional, al principio solo de audio, pero este trabajo trata y logra solucionar el mismo problema implementando además la transmisión simultánea de vídeo. Por lo tanto, dicha aplicación permite la transmisión de audio y vídeo en tiempo real, simultáneamente. Su diseño se enfoca en la eficiencia y calidad de la señal de audio, así como en la eficiencia y distintas posibles configuraciones de vídeo, pudiendo cambiar tanto la resolución del mismo como su \textit{FPS} (Cuadros por segundo, Frame per Second por sus siglas en inglés). Este sistema está preparado para ejecutarse en entornos con limitaciones de ancho de banda y en prácticamente cualquier dispositivo, por poco potente que sea, debido a su alta eficiencia y poca complejidad computacional.
 \vspace{\baselineskip}
 
-\textit{Intercom}, que se encuentra en el repositorio de la asignatura\footnote{https://github.com/Tecnologias-multimedia/InterCom}, utiliza técnicas avanzadas de procesamiento de señales, así como implementa diversos algoritmos de compresión de datos y optimización de la transmisión de flujos multimedia a través de los diversos módulos que contiene el mismo. 
+\textit{InterCom}, que se encuentra en el repositorio de la asignatura\footnote{https://github.com/Tecnologias-multimedia/InterCom}, utiliza técnicas avanzadas de procesamiento de señales, así como implementa diversos algoritmos de compresión de datos y optimización de la transmisión de flujos multimedia a través de los diversos módulos que contiene el mismo. 
 
 \vspace{\baselineskip}
 Todo el código, tanto preexiste como implementado en este trabajo, es en el lenguaje de programación Python. Además, esta memoria, ha sido redactada y compuesta en su totalidad en lenguaje \LaTeX~(Ver Figura \ref{fig:latex}), un sistema de preparación de documentos que permite la creación de documentos de alta calidad tipográfica y es ampliamente utilizado en el ámbito académico y científico. La elección de \LaTeX para la redacción de esta memoria no solo garantiza una presentación profesional, sino que también facilita la inclusión de tablas, gráficos y referencias bibliográficas de manera eficiente, personalizada y organizada.
@@ -22,7 +22,7 @@ Todo el código, tanto preexiste como implementado en este trabajo, es en el len
 La justificación de este proyecto está claramente fundamentada en diversos factores que son altamente relevantes en los tiempos actuales, sobre todo en las áreas académicas, tecnológicas y sociales. Evidentemente, en el mundo tan interconectado en el que vivimos, la comunicación multimedia ha adquirido una importancia crucial en múltiples ámbitos, desde la educación hasta el ámbito profesional y personal. La necesidad de herramientas eficientes y efectivas para la comunicación audiovisual es cada vez más evidente, especialmente en un contexto donde la interacción a distancia se ha vuelto la orden del día~\cite{GSMA}.
 \vspace{\baselineskip}
 
-El objetivo principal es facilitar una comunicación clara y fluida, que ya existía en la versión antigua de \textit{InterCom} con el audio, mejorándola con el añadido, como ya se ha comentado, de la transmisión simultánea de audio y vídeo, permitiendo distintas configuraciones de parámetros de vídeo. Principalmente, lo que se busca con este proyecto es la investigación y desarrollo de la herramienta \textit{Intercom} en un enfoque académico, en el cual se expanda el funcionamiento actual del mismo para descubrir nuevas maneras de desarrollar y profundizar en las herramientas de intercomunicación, como se ha hecho en el caso del vídeo en este proyecto.
+El objetivo principal es facilitar una comunicación clara y fluida, que ya existía en la versión antigua de \textit{InterCom} con el audio, mejorándola con el añadido, como ya se ha comentado, de la transmisión simultánea de audio y vídeo, permitiendo distintas configuraciones de parámetros de vídeo. Principalmente, lo que se busca con este proyecto es la investigación y desarrollo de la herramienta \textit{InterCom} en un enfoque académico, en el cual se expanda el funcionamiento actual del mismo para descubrir nuevas maneras de desarrollar y profundizar en las herramientas de intercomunicación, como se ha hecho en el caso del vídeo en este proyecto.
 
 \vspace{\baselineskip}
 Evidentemente, se desea lograr este objetivo intentando minimizar la latencia y el uso de recursos de red que es esencial en estos programas de intercomunicación~\cite{cisco}, aunque el programa está preparado para distintas posibles situaciones.
@@ -52,7 +52,7 @@ Por lo tanto, al implementar los nuevos módulos, la estructura quedaría de la 
 
 \begin{center}
 	\includegraphics[width = 1.01\textwidth]{images/jerarquia_modulos.png}
-	\captionof{figure}{Estructura jerarquizada de \textit{InterCom}.}
+	\captionof{figure}{Estructura jerarquizada de las clases implementadas en \textit{InterCom}.}
 	\label{fig:jeraquia}
 \end{center}
 
@@ -185,7 +185,7 @@ A continuación, en la Figura \ref{fig:planb} se puede observar el Diagrama de G
     \ganttbar[bar/.style={fill=red!70}]{Real}{2025-05-09}{2025-06-02} \\
     \ganttmilestone{Entrega proyecto}{2025-06-03} \\
 \end{ganttchart}
-\caption{Planificación del proyecto sobre \LaTeX con tiempos estimados y reales.}
+\caption{Planificación del proyecto sobre \LaTeX~ con tiempos estimados y reales.}
 \label{fig:planb}
 \end{figure}
 

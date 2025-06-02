@@ -71,14 +71,14 @@ Para la transmisión de vídeo y audio en tiempo real se ha optado por UDP (User
     \item \textbf{Eficiencia:} Al no tener sobrecarga por confirmaciones ni control de congestión, UDP aprovecha mejor el ancho de banda disponible en escenarios de comunicación en tiempo real. \cite{cloudflare_udp}
 \end{itemize}
 
-Además, se ha mantenido la característica que ya implementaba \textit{InterCom}, que es la transmisión de los datos sin usar ningún tipo de compresión de los mismos. Por lo tanto, para que se mantenga la coherencia con el sistema ya existente que no usa compresión para los datos de audio, se ha hecho lo mismo pero para los datos de vídeo.
+Además, en los módulos implementados en este trabajo, se ha mantenido la característica que ya implementaba \textit{InterCom} en sus módulos más basicos (\textit{Minimal} y \textit{Buffering}), que es la transmisión de los datos, solo de audio, sin usar ningún tipo de compresión de los mismos. Por lo tanto, para que se mantenga la coherencia con el sistema ya existente, en sus módulos básicos, se ha hecho lo mismo pero para los datos de vídeo. Sin embargo, como se puede ver en la Figura \ref{fig:jeraquia}, a partir del módulo \textit{DEFLATE}, se implementa la compresión de datos en el resto de módulos.
 
 \subsubsection{Estructura de los paquetes de vídeo}
 
 Cada paquete de vídeo enviado contiene:
 
 \begin{itemize}
-    \item \textbf{Cabecera (Header):} Un entero de 2 bytes (uint16) en formato big-endian que representa el índice del fragmento (FragIdx)
+    \item \textbf{Cabecera (Header):} Un entero de 2 bytes (uint16) en formato big-endian que representa el índice del fragmento (FragIdx).
     \item \textbf{Carga útil (Payload):} Una porción de los datos de imagen sin comprimir (raw). \\
     Tiene un tamaño máximo de \texttt{effective\_video\_payload\_size - 2 bytes}.
 \end{itemize}
@@ -114,7 +114,7 @@ La implementación se estructura en tres clases principales para mantener una se
 \end{itemize}
 \vspace{\baselineskip}
 
-Por ultimo, en la Figura \ref{fig:clases_methods_video} se muestra la jerarquía de clases y métodos implementados en todos los módulos desarrollados en este trabajo y una breve descripción de la funcionalidad de cad uno de los métodos.
+Por ultimo, en la Figura \ref{fig:clases_methods_video} se muestra la jerarquía de clases y métodos implementados en todos los módulos desarrollados en este trabajo y una breve descripción de la funcionalidad de cada uno de los métodos.
 \begin{center}
     \includegraphics[width = 1\textwidth]{images/uml.png}
     \captionof{figure}{Jerarquía de clases y métodos implementados en los módulos de vídeo.}
@@ -278,7 +278,7 @@ A continuación, se encuentra la explicación del código mostrado en el Listado
     \item \textbf{Línea 2:} se define el método \texttt{\_\_init\_\_} que es el constructor de la clase.
     \item \textbf{Líneas 3-6:} se inicializa la variable \texttt{args} con los argumentos procesados por el parser. Si \texttt{args} ya tiene un valor, se omite esta parte.
     \item \textbf{Línea 8:} se llama al constructor de la clase padre \textit{Minimal} para inicializar sus atributos.
-    \item \textbf{Líneas 10-11:} se verifica si la opción de mostrar vídeo está habilitada. Si no lo está, se sale del método ya que no necesitariamos inicializar todas las variables y métodos correspondientes con el vídeo.
+    \item \textbf{Líneas 10-11:} se verifica si la opción de mostrar vídeo está habilitada. Si no lo está, se sale del método ya que no necesitaríamos inicializar todas las variables y métodos correspondientes con el vídeo.
     \item \textbf{Línea 13:} se crea un socket UDP para la transmisión de vídeo. socket.AF\_INET indica que se usará IPv4 y socket.SOCK\_DGRAM indica que se usará UDP.
     \item \textbf{Líneas 14-16:} se configuran opciones del socket para permitir la reutilización de la dirección IP y puertos usados\footnote{La reutilización de la dirección sirve para que no nos muestre el error ``Address already in use'' al ejecutar el módulo varias veces seguidas.} y aumentar el tamaño del buffer de recepción y envío a 8MB\footnote{Permite mayor flexibilidad al manejar mayor cantidad de datos de vídeo sin pérdidas cuando hay picos en la recepción.}.
     \item \textbf{Línea 17:} se establece el socket como no bloqueante, lo que significa que las operaciones de lectura y escritura no bloquearán el socket de vídeo si no hay datos disponibles.\footnote{Permite que el módulo continúe ejecutándose mientras maneja la comunicación de vídeo sin quedar bloqueado. Esencial para aplicaciones en tiempo real, en concreto la nuestra.}
@@ -335,7 +335,7 @@ print(f"Flag --show_video detected. Attempting to initialize camera with index {
 \end{lstlisting}
 
 \begin{itemize}
-    \item \textbf{Línea 1:} se imprime un mensaje indicando que se ha detectado la opción \texttt{--show\_video} y que se intentará inicializar la cámara con el indice de la misma.\footnote{Evidentemente el usaurio tiene que tener la cámara conectada y activada.}
+    \item \textbf{Línea 1:} se imprime un mensaje indicando que se ha detectado la opción \verb|--show_video| y que se intentará inicializar la cámara con el indice de la misma.\footnote{Evidentemente el usaurio tiene que tener la cámara conectada y activada.}
     \item \textbf{Líneas 2-5:} se intenta inicializar la cámara usando la función de OpenCV \texttt{VideoCapture()} con el índice de la cámara proporcionado por el usuario. Si no se puede abrir la cámara, se lanza una excepción \texttt{IOError} y se imprime un mensaje de error. Esto garantiza que el módulo no intente usar la cámara si no está disponible.
     \item \textbf{Líneas 6-11:} se configuran las propiedades de la cámara (ancho, alto y FPS) según los argumentos proporcionados por el usuario. Si los valores son mayores que 0, se aplican.
     \item \textbf{Línea 12:} se establece el tamaño del buffer de la cámara a 2 fotogramas\footnote{El tamaño del buffer se refiere a la cantidad de fotogramas que se almacenan temporalmente antes de ser procesados. Se usa un buffer de 2 fotogramas en lugar de 1 porque muchos drivers de cámara no funcionan correctamente con un buffer de solo 1 frame, pudiendo causar errores, frames corruptos o comportamiento inestable. El uso de 2 fotogramas es el mínimo que garantiza estabilidad del sistema mientras mantiene una latencia muy baja, proporcionando un pequeño margen de seguridad contra \textit{frame drops} sin sacrificar significativamente el rendimiento en tiempo real.}, lo que ayuda a reducir la latencia en la captura de vídeo.
@@ -385,7 +385,7 @@ def send_video_fragment(self, frag_idx, data):
     \item \textbf{Línea 3:} se extraen los datos del fotograma en el rango especificado y se almacenan en la variable \texttt{payload}.
     \item \textbf{Línea 4:} se crea el paquete concatenando el encabezado del fragmento y los datos del fotograma.
     \item \textbf{Líneas 5-9:} se intenta enviar el paquete a través del socket de vídeo UDP usando el método \texttt{sendto()}. Si el socket está bloqueado, se captura la excepción \texttt{BlockingIOError} y se imprime un mensaje de advertencia. En este caso, simplemente se ignora.\footnote{Aunque el socket se estableció como no bloqueante, puede haber ocasiones en las que el socket esté temporalmente bloqueado debido a la congestión de la red o a otros factores.}
-    \item \textbf{Línea 10:} se devuelve la longitud del paquete enviado, que será util en módulos derivados de este.\footnote{Se verá más adelante en el módulo \textit{Minimal\_Video\_FPS} que se usa para calcular el tamaño del paquete enviado.}
+    \item \textbf{Línea 10:} se devuelve la longitud del paquete enviado, que será útil en módulos derivados de este.\footnote{Se verá más adelante en el módulo \textit{Minimal\_Video\_FPS} que se usa para calcular el tamaño del paquete enviado.}
 \end{itemize}
 \vspace{\baselineskip}
 
@@ -415,7 +415,7 @@ A continuación, se explican las líneas de código que se muestran en el códig
     \item \textbf{Línea 5:} se extrae el encabezado del paquete recibido.
     \item \textbf{Líneas 6:} se extraen los datos del payload del paquete recibido, omitiendo el encabezado.
     \item \textbf{Línea 7:} se desempaqueta el encabezado para obtener el índice del fragmento recibido usando la función \texttt{struct.unpack()}.\footnote{La función \texttt{struct.unpack()} convierte los bytes del encabezado en un entero, que representa el índice del fragmento recibido.}
-    \item \textbf{Línea 8:} se define la varible \texttt{start} que representa el inicio del rango de bytes del fragmento recibido.
+    \item \textbf{Línea 8:} se define la variable \texttt{start} que representa el inicio del rango de bytes del fragmento recibido.
     \item \textbf{Línea 9:} se define la variable \texttt{end} que representa el final del rango de bytes del fragmento recibido.
     \item \textbf{Línea 10:} se aplana el fotograma remoto para facilitar la asignación directa de los datos del payload. Esto convierte el fotograma en un array unidimensional, lo que permite acceder a los elementos de manera más sencilla.\footnote{El método \texttt{reshape(-1)} convierte el array multidimensional en un array unidimensional, manteniendo el mismo número total de elementos.}
     \item \textbf{Línea 11:} se asignan directamente los datos del payload al rango correspondiente en el fotograma remoto usando la función \texttt{np.frombuffer()} para convertir los bytes en un array NumPy~\cite{numpy}. Esto permite que los datos del payload se copien directamente en el fotograma remoto en la posición correcta.\footnote{La función np.frombuffer() crea un array NumPy a partir de un buffer de bytes, permitiendo especificar el tipo de dato y la cantidad de elementos a leer.}
@@ -511,7 +511,7 @@ A continuación, se explican las líneas de código que se muestran en el códig
 
 \vspace{\baselineskip}
 
-Ahora, se procede a explicar la versión ``verbose'' del módulo \textit{Minimal\_Video} que se encargará de hacer lo mismo que la versión normal ya que ejecuta los métodos de la clase padre pero añadiendo una serie de estadísticas con respecto al vídeo, como monitorizar la cantidad de paquetes que se reciben y se envían, porcentaje de uso de la CPU y más. Para activar esta versión del código hay que usar alguna de los cuatro ``flags'' que lo activan, los cuales son ``--show\_stats'', ``--show\_samples'', ``--show\_spectrum'' y ``--reading\_time''. Las salidas de estos ``flags'' se mostrarán más adelante. 
+Ahora, se procede a explicar la versión ``verbose'' del módulo \textit{Minimal\_Video} que se encargará de hacer lo mismo que la versión normal ya que ejecuta los métodos de la clase padre pero añadiendo una serie de estadísticas con respecto al vídeo, como monitorizar la cantidad de paquetes que se reciben y se envían, porcentaje de uso de la CPU y más. Para activar esta versión del código hay que usar alguna de los cuatro ``flags'' que lo activan, los cuales son \verb|--show_stats|, \verb|--show_samples|, \verb|--show_spectrum| y \verb|--reading_time|. Las salidas de estos ``flags'' se mostrarán más adelante. 
 \vspace{\baselineskip}
 
 El código correspondiente al comienzo de esta parte del módulo es el siguiente:
@@ -785,7 +785,7 @@ A continuación, se explican las líneas de código que se muestran en el Listad
     \item \textbf{Líneas 17-23:} se imprimen las estadísticas finales de ancho de banda, incluyendo las tasas promedio de envío y recepción de audio y vídeo, el tiempo total transcurrido y una línea de separación.
 \end{itemize}
 
-Ahora, se procede a explicar el método \texttt{video\_loop()} de la versión ``verbose'' de \textit{Minimal\_Video}. Aunque es ciertamente similar al de la versión normal, esto se debe a que necesitamos sobreescribir el método para poder calcular ciertas estadísticas y actualizar contadores que necesitaremos para esta versión. El código es el siguiente:
+Ahora, se procede a explicar el método \texttt{video\_loop()} de la versión ``verbose'' de \textit{Minimal\_Video}. Aunque es ciertamente similar al de la versión normal, esto se debe a que necesitamos sobrescribir el método para poder calcular ciertas estadísticas y actualizar contadores que necesitaremos para esta versión. El código es el siguiente:
 
 \begin{lstlisting}[style=pythonstyle, caption={Método \texttt{video\_loop()} de \textit{Minimal\_Video\_verbose}.}, label={lst:video_loop_minimal_video_verbose}]
 def video_loop(self):
@@ -1089,17 +1089,17 @@ A continuación, se explican las líneas de código que se muestran en el Listad
 El siguiente método que se va a explicar es \texttt{control\_framerate()} que se encarga de controlar la tasa de fotogramas del vídeo y calcular los FPS reales pero en la versión ``verbose'' para poder actualizar las variables y contadores asociados a las estadísticas que más tarde usarán otros métodos:
 \begin{lstlisting}[style=pythonstyle, caption={Método \texttt{control\_framerate()} de \textit{Minimal\_Video\_FPS}.}, label={lst:control_framerate_minimal_video_fps_verbose}]
 def control_framerate(self, start_time):
-        now = time.time()
-        frame_duration = now - self.last_frame_time
-        self.last_frame_time = now
+    now = time.time()
+    frame_duration = now - self.last_frame_time
+    self.last_frame_time = now
 
-        self.frame_times.append(frame_duration)
-        if len(self.frame_times) > self.max_frame_history: # Limit the history size
-            self.frame_times.pop(0) # Remove the oldest frame time
-        if self.frame_times:
-            avg_frame_time = sum(self.frame_times) / len(self.frame_times) # Average frame time
-            self.fps_real = 1.0 / avg_frame_time if avg_frame_time > 0 else 0 # Calculate FPS
-        Minimal_Video_FPS.control_framerate(self, start_time)
+    self.frame_times.append(frame_duration)
+    if len(self.frame_times) > self.max_frame_history: # Limit the history size
+        self.frame_times.pop(0) # Remove the oldest frame time
+    if self.frame_times:
+        avg_frame_time = sum(self.frame_times) / len(self.frame_times) # Average frame time
+        self.fps_real = 1.0 / avg_frame_time if avg_frame_time > 0 else 0 # Calculate FPS
+    Minimal_Video_FPS.control_framerate(self, start_time)
 \end{lstlisting}
 \vspace{\baselineskip}
 
