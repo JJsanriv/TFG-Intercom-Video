@@ -10,12 +10,13 @@ Las conclusiones que se pueden extraer de estas pruebas mostradas en la Tabla \r
 \item Con una capacidad baja (10 Mbps), la situación mejora, pero sigue siendo difícil. Se recibe más información, pero los módulos que intentan ajustar los FPS todavía logran muy pocos (1.2-1.6 FPS, eficiencia del 9-14\%). La red aún se congestiona a veces.
 \item Con una capacidad media (50 Mbps), la comunicación es buena. Se recibe casi toda la información enviada (más del 90\% del audio y vídeo). El módulo \textit{Minimal\_Video} funciona fluido. Los módulos que ajustan FPS mejoran bastante, logrando 5 FPS (\textit{Minimal\_Video\_FPS} con 41.5\% de eficiencia) y 3.6 FPS (\textit{Minimal\_Video\_Resolution} con 29.8\% de eficiencia), y la red no se satura.
 \end{itemize}
-\item \textbf{Efecto de la latencia (retraso en la red) y el jitter (variación del retraso):}
+\item \textbf{Efecto de la latencia (retraso en la red) y el jitter (variación de la latencia):}
 \begin{itemize}
-    \item Con un retraso ideal (0 ms, jitter mínimo), la transmisión de datos es muy eficiente (llega más del 94\% del vídeo y más del 90\% del audio). Sin embargo, los módulos que ajustan FPS no alcanzan el objetivo de 12 FPS, quedándose en unos 5.2-5.4 FPS (eficiencia del 43-45\%), lo que indica que hay otros factores limitantes además de la red.
-    \item Con un retraso moderado (100 ms y jitter asociado), sorprendentemente, el módulo \textit{Minimal\_Video\_FPS} alcanza su mejor rendimiento, llegando a 11.4 FPS (95\% de eficiencia). \textit{Minimal\_Video\_Resolution} también mejora a 6.6 FPS (55.4\% de eficiencia). La llegada de datos sigue siendo muy buena. Parece que este retraso ayuda a organizar mejor el envío de fotogramas.
-    \item Con un retraso alto (250 ms y jitter severo), aunque la cantidad de datos que llega sigue siendo alta (más del 89\% del vídeo), la experiencia del usuario se ve afectada por el gran retraso y la irregularidad. Los módulos que ajustan FPS aún funcionan decentemente (8.3 FPS para \textit{Minimal\_Video\_FPS} y 6.0 FPS para \textit{Minimal\_Video\_Resolution}), pero la comunicación se siente poco fluida.
+    \item Con latencia ideal (0 ms), donde el jitter es necesariamente 0, la transmisión de datos es muy eficiente (llega más del 94\% del vídeo y más del 90\% del audio). Sin embargo, los módulos que ajustan FPS no alcanzan el objetivo de 12 FPS, quedándose en unos 5.2-5.4 FPS (eficiencia del 43-45\%), lo que indica que hay otros factores limitantes además de la red.
+    \item Con latencia moderada (100 ms) y jitter bajo, sorprendentemente \textit{Minimal\_Video\_FPS} alcanza su mejor rendimiento, llegando a 11.4 FPS (95\% de eficiencia). En cuanto a \textit{Minimal\_Video\_Resolution} también mejora a 6.6 FPS (55.4\% de eficiencia). La recepción de los datos sigue siendo muy buena. Al parecer, este límite de latencia ayuda a organizar mejor el envío de fotogramas, sin que el jitter afecte negativamente a la calidad de imagen.
+    \item Con latencia alta (250 ms) y jitter elevado, aunque la cantidad de datos que llega sigue siendo alta (más del 89\% del vídeo), la experiencia del usuario se ve significativamente afectada. La latencia causa un retraso notable en la visualización, mientras que el jitter provoca irregularidades en la calidad de imagen. Los módulos que ajustan FPS aún funcionan relativamente bien (8.3 FPS para \textit{Minimal\_Video\_FPS} y 6.0 FPS para \textit{Minimal\_Video\_Resolution}), pero la comunicación se percibe poco fluida debido principalmente al jitter elevado.
 \end{itemize}
+\vspace{\baselineskip}
 
 \item \textbf{Degradación por pérdida de paquetes:}
 \begin{itemize}
@@ -24,11 +25,11 @@ Las conclusiones que se pueden extraer de estas pruebas mostradas en la Tabla \r
     \item Con una pérdida muy alta (50\%), la comunicación colapsa. Se pierde la mayor parte del audio (llega solo el 15-18\%) y la mitad del vídeo (llega el 48-52\%). Los FPS son mínimos, entre 1.5 y 1.7 (eficiencia del 12-14\%), lo que es inviable.
 \end{itemize}
 
-\item \textbf{Adaptabilidad de los módulos:}
+\item \textbf{Comportamiento de los diferentes módulos de configuración:}
 \begin{itemize}
-    \item Los módulos \textit{Minimal\_Video\_FPS} y \textit{Minimal\_Video\_Resolution}, que intentan ajustar los FPS y la resolución, muestran un comportamiento interesante. Funcionan especialmente bien con retrasos moderados en la red (100 ms de latencia).
-    \item Sin embargo, cuando la capacidad de la red es muy baja (1 Mbps) o la pérdida de paquetes es alta (25\% o más), estas funciones adaptativas no son suficientes para ofrecer una buena experiencia, y el rendimiento cae drásticamente, al igual que con el módulo básico.
-    \item El proceso de cambiar la resolución en \textit{Minimal\_Video\_Resolution} (TR) es rápido (entre 2.8 y 6.5 milisegundos) y no consume muchos recursos del ordenador (impacto del 3-8\%), por lo que no es un problema en sí mismo.
+    \item Los módulos \textit{Minimal\_Video\_FPS} y \textit{Minimal\_Video\_Resolution}, que operan con diferentes configuraciones de FPS y resolución respectivamente, muestran un comportamiento interesante. Funcionan especialmente bien con retrasos moderados en la red (100 ms de latencia).
+    \item Cuando la capacidad de la red es muy baja (1 Mbps) o la pérdida de paquetes es alta (25\% o más), estas configuraciones específicas no son suficientes para ofrecer una buena experiencia, y el rendimiento cae drásticamente, al igual que con el módulo básico (\textit{Minimal\_Video}).
+    \item El proceso de configuración de la resolución en \textit{Minimal\_Video\_Resolution} (TR) es rápido (entre 2.8 y 6.5 milisegundos) y no consume muchos recursos del ordenador (impacto del 3-8\%), por lo que la implementación de esta funcionalidad no representa un problema en sí mismo.
 \end{itemize}
 \end{itemize}
 
@@ -37,6 +38,8 @@ El módulo \textbf{\textit{Minimal\_Video}} es sencillo y funciona bien si la re
 El módulo \textbf{\textit{Minimal\_Video\_FPS}} destaca por su capacidad de mantener una buena tasa de fotogramas cuando hay un retraso moderado en la red (como 100 ms).
 El módulo \textbf{\textit{Minimal\_Video\_Resolution}} también se adapta bien al retraso y el cambio de resolución es eficiente.
 En condiciones de red muy malas (capacidad de 1 Mbps o pérdidas de paquetes del 25\% o más), todos los módulos fallan en proporcionar una comunicación efectiva. La elección del módulo dependerá del tipo de problema de red que se espere encontrar.
+
+\newpage
 
 \subsection{Trabajo futuro}
 A partir del análisis de los resultados y las limitaciones observadas, en conjunto con todo lo expuesto en este proyecto, se proponen unas líneas y propuestas de trabajo a futuro para mejorar y expandir las capacidades del sistema de videollamada:

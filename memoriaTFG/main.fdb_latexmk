@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex main"] 1748940895.51302 "main.aux" "main.bbl" "main" 1748943726.14481 0
+["bibtex main"] 1748970642.37693 "main.aux" "main.bbl" "main" 1748970650.56652 0
   "./referencias.bib" 1748793131.73027 4783 fae6cd05ec1e02e81848c4b679655c6c ""
   "/usr/share/texlive/texmf-dist/bibtex/bst/base/ieeetr.bst" 1292289607 18361 1a00e58565e7f19bf2b3e1bfb82254ae ""
-  "main.aux" 1748943725.60269 35756 503616804a4ed2ff751a941474a017b0 "pdflatex"
+  "main.aux" 1748970650.10151 35800 acda77ff9101ab1cf3a01bfe25dcf678 "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1748943711.49698 "/home/jj/Memoria-TFG/memoriaTFG/main.tex" "main.pdf" "main" 1748943726.14503 0
+["pdflatex"] 1748970642.41875 "/home/jj/Memoria-TFG/memoriaTFG/main.tex" "main.pdf" "main" 1748970650.56678 0
   "/etc/texmf/web2c/texmf.cnf" 1746477420.555 475 c0e671620eb5563b2130f56340a5fde8 ""
   "/home/jj/.texlive2023/texmf-var/fonts/pk/ljfour/jknappen/ec/eccc0900.600pk" 1748038299.69438 22404 e08fefc78f7cb655898388414314492e ""
   "/home/jj/.texlive2023/texmf-var/fonts/pk/ljfour/jknappen/ec/ecit0800.600pk" 1748333560.44147 19136 b5b6dd8c72b4d213149129577fe7e5bd ""
@@ -305,7 +305,7 @@
   "/usr/share/texmf/web2c/texmf.cnf" 1707919699 40399 f2c302f7d2af602abb742093540a5834 ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1746477644.09768 128028 f533b797fba58d231669ea19e894e23e ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1746478274 6822839 62b3d9adca78b95ef3a532361d06a0c8 ""
-  "conclusion.tex" 1748861862.69946 9201 7ae4cb3d57ab788c72bcd05695f53843 ""
+  "conclusion.tex" 1748970623.53645 9632 2012c7167a326fca6f1c018d205a1a87 ""
   "images/LaTeX_logo.png" 1747089952.01123 18487 662e33c910b4cfc5cc35931693faa1ab ""
   "images/TFG_II_back.pdf" 1747047832.89006 47076 8ca7e5230fa5bfa22c5224ab8b933096 ""
   "images/TFG_II_front.pdf" 1747047832.89006 841442 353e4caeeba8226166e38ba2781346d4 ""
@@ -346,18 +346,18 @@
   "images/pruebas/ejecuion_normal_resolution.png" 1748942345.76117 552496 b5e76d2e4a83ca486c838e57a843d222 ""
   "images/uml.png" 1748362182.073 58149 0f683ce1569fc330ae3a562bf8a31ea0 ""
   "introduccion.tex" 1748858580.03026 17697 c66b38b265a29b84519ad5222129d751 ""
-  "main.atfi" 1748943725.60869 23 33e109ecf84d2ac55814cb2442ea01dc "pdflatex"
-  "main.aux" 1748943725.60269 35756 503616804a4ed2ff751a941474a017b0 "pdflatex"
-  "main.bbl" 1748940895.54784 3380 808bc94ee1621640626d5ac378c6af14 "bibtex main"
-  "main.lof" 1748943725.60869 5413 fcc29cbb4b575e26c0edd906ee0db605 "pdflatex"
-  "main.lol" 1748943725.60969 6346 3e9c172db1dab02dec10d9b4fb73593b "pdflatex"
-  "main.lot" 1748943725.60869 357 b6e86145c1f62ca961012d79346a023d "pdflatex"
-  "main.out" 1748943725.60769 5974 fb7304de7da3f89f2bd6a66b83b37f8a "pdflatex"
+  "main.atfi" 1748970650.10851 23 33e109ecf84d2ac55814cb2442ea01dc "pdflatex"
+  "main.aux" 1748970650.10151 35800 acda77ff9101ab1cf3a01bfe25dcf678 "pdflatex"
+  "main.bbl" 1748970642.40849 3380 808bc94ee1621640626d5ac378c6af14 "bibtex main"
+  "main.lof" 1748970650.10951 5414 3af636241d4f5e52a8cfef0c8de528ab "pdflatex"
+  "main.lol" 1748970650.11051 6346 3e9c172db1dab02dec10d9b4fb73593b "pdflatex"
+  "main.lot" 1748970650.10951 357 72982a41362284334083e4bfaf79754f "pdflatex"
+  "main.out" 1748970650.10751 5974 fb7304de7da3f89f2bd6a66b83b37f8a "pdflatex"
   "main.tex" 1748537425.33977 4946 48df3362015c328dbe6dbcc13f03ea18 ""
-  "main.toc" 1748943725.60869 2743 8ba1d29562db48be08dcc4aab605ff13 "pdflatex"
-  "metodologia.tex" 1748881726.58173 141178 2e7bfc831185a5b78df77fe6ea7cc695 ""
+  "main.toc" 1748970650.10851 2743 ff09225d266b9000c6c3676ea9371fc9 "pdflatex"
+  "metodologia.tex" 1748970481.50109 141493 44a96c574d21fc4a51a6c2719e619169 ""
   "packages.tex" 1748887825.28709 3750 c75a94e8793f913ba7c7a04d5ef35513 ""
-  "resultados_y_discusion.tex" 1748943711.12268 206970 ba9deff22135cf43bca7fd6ee081c71c ""
+  "resultados_y_discusion.tex" 1748970552.20428 210233 254ec79c426765cd3b53d404b84a46b2 ""
   "resumencontraportada.tex" 1748540889.83933 1870 4d5e6ee8f75849614c1def7b550a9ba0 ""
   (generated)
   "main.atfi"

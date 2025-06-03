@@ -109,14 +109,13 @@ La implementación se estructura en tres clases principales para mantener una se
 
 \begin{itemize}
     \item \textbf{Minimal\_Video}: Clase base que extiende de \texttt{Minimal}, encargada de la funcionalidad principal de captura, transmisión, recepción y visualización del vídeo, manteniendo la compatibilidad con el sistema de audio existente en \textit{minimal}.
-    \item \textbf{Minimal\_Video\_FPS}: Clase que extiende de \textit{Minimal\_Video} y añade la funcionalidad de control de frames por segundo (FPS) para limitar la tasa de envío de fotogramas, permitiendo una mayor estabilidad en redes con limitaciones de ancho de banda.
+    \item \textbf{Minimal\_Video\_FPS}: Clase que extiende de \textit{Minimal\_Video} y añade la funcionalidad de control de frames por segundo (FPS) para limitar la tasa de envío de fotogramas, permitiendo una mayor estabilidad en redes con limitaciones de ancho de banda. Se implementa el control de FPS en esta clase aparte debido a que OpenCV presenta problemas al establecer el FPS directamente en la cámara, lo que puede causar inestabilidad en la transmisión de vídeo. Por lo tanto, se ha optado por implementar un control de FPS a nivel de software, regulando la frecuencia de envío de fotogramas.
     \item \textbf{Minimal\_Video\_Resolution}: Clase que extiende de \textit{Minimal\_Video\_FPS} que permite ajustar y reescalar la resolución del vídeo, adaptándose a las capacidades del dispositivo de la cámara y a las preferencias del usuario.
 \end{itemize}
-\vspace{\baselineskip}
 
 Por ultimo, en la Figura \ref{fig:clases_methods_video} se muestra la jerarquía de clases y métodos implementados en todos los módulos desarrollados en este trabajo y una breve descripción de la funcionalidad de cada uno de los métodos.
 \begin{center}
-    \includegraphics[width = 1\textwidth]{images/uml.png}
+    \includegraphics[width = 0.91\textwidth]{images/uml.png}
     \captionof{figure}{Jerarquía de clases y métodos implementados en los módulos de vídeo.}
     \label{fig:clases_methods_video}
 \end{center}
@@ -124,7 +123,7 @@ Por ultimo, en la Figura \ref{fig:clases_methods_video} se muestra la jerarquía
 La jerarquía de clases comienza con \texttt{Minimal\_Video} como la clase base para la comunicación de audio y vídeo, esta a su vez, extiende en dos clases adicionales para añadir funcionalidades específicas de vídeo:
 \begin{itemize} 
     \item \texttt{Minimal\_Video} hereda de \texttt{Minimal} añadiendo funcionalidad de captura, envío, recepción y visualización de vídeo. 
-    \item \texttt{Minimal\_Video\_FPS} hereda de \texttt{Minimal\_Video} añadiendo control de frames por segundo (FPS) para regular la tasa de envío de fotogramas. 
+    \item \texttt{Minimal\_Video\_FPS} hereda de \texttt{Minimal\_Video} añadiendo control de frames por segundo (FPS) para regular la tasa de envío de fotogramas.
     \item \texttt{Minimal\_Video\_Resolution} hereda de \texttt{Minimal\_Video\_FPS} \\
     añadiendo la capacidad de ajustar la resolución del vídeo, permitiendo reescalado y adaptación a las cualidades de la cámara.
 \end{itemize}

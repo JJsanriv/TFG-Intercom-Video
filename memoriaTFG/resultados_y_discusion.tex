@@ -125,6 +125,43 @@ Ahora, ya se puede aplicar la regla de red deseada. Para ello, se utilizarán lo
 
 \newpage
 
+Antes de presentar los resultados detallados de los experimentos, es necesario definir y aclarar algunas de las métricas clave que se utilizarán para la evaluación del rendimiento de los módulos, especialmente en aquellas relacionadas con la tasa de fotogramas y reescalado de resolución. Estas definiciones ayudarán a interpretar los datos presentados en las siguientes secciones y en la Tabla~\ref{tab:resumen_pruebas_globales}.
+
+\begin{itemize}
+    \item \textbf{FPS Objetivo:} Corresponde a la tasa de fotogramas por segundo que se intenta alcanzar con la transmisión, configurada explícitamente por el usuario en todos los módulos (\texttt{Minimal\_Video}, \texttt{Minimal\_Video\_FPS} y \texttt{Minimal\_Video\_Resolution}) mediante el parámetro \verb|-z| (por defecto a 30 FPS). En \textit{Minimal\_Video} a la hora de ejecutar, no se muestran ninguna estadística relacionada con los FPS (eso lo hace \textit{Minimal\_Video\_FPS}), debido a que que no se puede establecer realmente un FPS concreto por el usuario por las limitaciones encontradas en la biblioteca OpenCV en este aspecto (ya explicado en anteriores capítulos, concretamente en el 2.2.4). Por lo tanto, se puede considerar que el FPS objetivo es 30 FPS, que es el valor por defecto de la cámara. Para saber concretamente, con todo detalle, lo relacionado con los FPS, se debe ejecutar el módulo \texttt{Minimal\_Video\_FPS} o en su defecto, \texttt{Minimal\_Video\_Resolution} que hereda del anterior.
+
+    \item \textbf{FPS Recibido (por ciclo):} Es el número de fotogramas de vídeo que se han logrado recibir, procesar y mostrar con éxito durante cada ciclo de estadísticas (de 1 segundo de duración). Este valor puede fluctuar debido a las condiciones de la red y la carga del sistema.
+
+    \item \textbf{FPS Real Promedio (FPS R):} Es el promedio de los FPS recibidos durante toda la transmisión. Se calcula como:
+    \begin{center}
+      \boxed{ \text{FPS}_R = \frac{\sum^N_{i=1}~\text{FPS}_{\text{recibidos},i}}{N}}
+    \end{center}
+    Donde \(N\) es el número total de ciclos de estadísticas y \(\text{FPS}_{\text{recibidos},i}\) son los FPS contabilizados como recibidos en el ciclo \(i\). El ``FPS Real Promedio'' puede diferir del ``FPS Objetivo'' por diversas razones, entre las que se incluyen:
+    \begin{itemize}
+        \item Limitaciones del hardware de captura (cámara) o de procesamiento (CPU) que impiden generar o procesar fotogramas a la tasa objetivo.
+        \item La carga de trabajo del propio módulo (en el caso de \texttt{Minimal\_Video\_Resolution}, el reescalado).
+        \item Las condiciones de la red (ancho de banda insuficiente, alta latencia, jitter o pérdida de paquetes) que pueden impedir la transmisión o recepción completa y a tiempo de todos los fotogramas generados.
+    \end{itemize}
+
+    \item \textbf{Eficiencia de FPS (FPS E):} Es el porcentaje que representa el ``FPS Real Promedio'' con respecto al ``FPS Objetivo'' (o FPS ideal) que se configuró para la transmisión. Esta métrica es la que se muestra a partir de los módulos \texttt{Minimal\_Video\_FPS} y \texttt{Minimal\_Video\_Resolution}. Se calcula como:
+    \begin{center}
+      \boxed{\text{FPS}_E = \frac{\text{FPS}_R}{\text{FPS}\text{~Objetivo}} \times 100}
+    \end{center}
+
+    \item \textbf{Tiempo de Reescalado (TR):} Es específico del módulo \texttt{Minimal\_Video\_Resolution}. Representa el tiempo promedio, medido en milisegundos (ms), que el módulo demora en reescalar cada fotograma de vídeo a la resolución deseada.
+    \begin{center}
+      \boxed{ \text{TR (ms)} = \left( \frac{\sum \text{Tiempo de reescalado por fotograma}}{\text{Número total de fotogramas reescalados}} \right) \times 1000 }
+    \end{center}
+
+    \item \textbf{Impacto en Rendimiento (IR):} Es específico del módulo \texttt{Minimal\_Video\_Resolution}. Esta métrica calcula el porcentaje del tiempo ideal disponible por fotograma (según el \texttt{FPS Objetivo}) que se consume en la operación de reescalado del vídeo. Un valor alto podría indicar que el proceso de reescalado es un cuello de botella significativo para alcanzar la tasa de fotogramas objetivo. Se calcula como:
+    \begin{center}
+      \boxed{\text{IR} = \frac{\text{TR (ms)} \times \text{FPS}\text{~Objetivo}}{1000} \times 100}
+    \end{center}
+    Donde \(\text{TR}\) es el Tiempo de Reescalado promedio en milisegundos y \(\text{FPS}\text{~Objetivo}\) es la tasa de fotogramas por segundo objetivo.
+\end{itemize}
+
+\newpage
+
 \subsubsection{Experimentos sin limitaciones artificiales}
 
 Antes de nada, se mostrará en la Figura~\ref{fig:ejecucion_doble} una ejecución normal de cada módulo implementado para que se observe el funcionamiento y su salida sin ningún tipo de alteración en cada uno de ellos. 
@@ -3218,33 +3255,6 @@ Estos resultados demuestran que una pérdida de paquetes del 50\% resulta en la 
     \label{tab:resumen_pruebas_globales}
 \end{table}
 \vspace{\baselineskip}
-
-Definiciones de distintos términos usados en la tabla:
-\begin{itemize}
-    \item \textbf{FPS real promedio:} Es el promedio de FPS reales recibidos durante la transmisión.
-    
-    \begin{center}
-      \boxed{ \text{FPS}_R = \frac{\sum^n_{i=1}~\text{FPS}_{\text{recibidos},i}}{N}}
-    \end{center}
-
-    Donde \(N\) es el número total de ciclos y \(\text{FPS}_{\text{recibidos},i}\) es el FPS recibido en el ciclo \(i\).
-
-    \item \textbf{Eficiencia de FPS:} Es el porcentaje de cuadros por segundo recibidos respecto a los cuadros por segundo que deberían haberse transmitido. 
-    
-    \begin{center}
-      \boxed{\text{FPS}_E = \frac{\text{FPS}_R}{\text{FPS}\text{~ideal}} \times 100}
-    \end{center}
-    
-    Donde \(\text{FPS}_R\) es el FPS real promedio y \(\text{FPS}\text{~ideal}\) es el FPS objetivo configurado para la transmisión.
-
-    \item \textbf{Impacto en rendimiento:} Es el porcentaje de tiempo adicional que toma reescalar el vídeo respecto al tiempo total de procesamiento del ciclo. 
- 
-    \begin{center}
-      \boxed{\text{IR} = \left(1 - \frac{\text{VR}}{\text{VT}}\right) \times 100}
-    \end{center}
-    Donde \(\text{VR}\) es el video recibido y \(\text{VT}\) es el video transmitido.
-    
-\end{itemize}
 
 \newpage
 
