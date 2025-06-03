@@ -2,7 +2,7 @@
 
 \subsection{Configuración de hardware}
 
-Los experimentos se realizaron utilizando dos instancias de InterCom ejecutándose en ordenadores físicos distintos. La primera instancia se ejecutó en un portátil equipado con WebCam integrada, mientras que la segunda se ejecutó en un PC de escritorio con WebCam externa. Ambos sistemas utilizan el mismo entorno virtual \textit{Xubuntu} bajo \textit{Oracle VirtualBox}, con configuraciones prácticamente idénticas. La única diferencia significativa es la asignación de memoria RAM: 8 GB para el portátil y 16 GB para el PC de escritorio. Esta diferencia no debería influir en los resultados de las pruebas, ya que ambas configuraciones proporcionan recursos suficientes para la ejecución de los módulos.
+Los experimentos se realizaron utilizando dos instancias de InterCom ejecutándose en ordenadores físicos distintos. La primera instancia se ejecutó en un portátil equipado con WebCam integrada, mientras que la segunda se ejecutó en un PC de escritorio con WebCam externa. Ambos sistemas utilizan el mismo entorno virtual \textit{Xubuntu} bajo \textit{Oracle VirtualBox}, con configuraciones prácticamente idénticas. La única diferencia significativa es la asignación de memoria RAM: 8 GB para el portátil y 16 GB para el PC de escritorio y sus núcleos, el portátil usará el máximo de núcleos que se le es posible y el PC usará 6 núcleos. Esta diferencia no debería influir en los resultados de las pruebas, ya que ambas configuraciones proporcionan recursos suficientes para la ejecución de los módulos.
 \vspace{\baselineskip}
 
 Como se puede ver en la Figura \ref{fig:conf_red}, para establecer la comunicación entre las instancias, se configuró un adaptador de red tipo ``puente'' (a través de la configuración en \textit{Oracle VirtualBox}) en ambas máquinas virtuales. Esta configuración permite que las máquinas virtuales, aun ejecutándose en ordenadores físicos diferentes, se comuniquen directamente a través de la red. Las direcciones IP asignadas fueron 192.168.0.58 para el portátil y 192.168.0.68 para el PC de escritorio.
@@ -17,8 +17,8 @@ Como se puede ver en la Figura \ref{fig:conf_red}, para establecer la comunicaci
     ]
         
         % Ordenadores físicos
-        \node[computer] (laptop) {\textbf{Portátil}\\8 GB RAM};
-        \node[computer, right=6cm of laptop] (pc) {\textbf{PC Escritorio}\\16 GB RAM};
+        \node[computer] (laptop) {\textbf{Portátil}\\8 GB RAM\\4 Cores};
+        \node[computer, right=6cm of laptop] (pc) {\textbf{PC Escritorio}\\16 GB RAM\\6 cores};
         
         % Máquinas virtuales
         \node[vm, below=0.5cm of laptop] (vm1) {VM Xubuntu\\InterCom\\192.168.0.58};
@@ -42,15 +42,18 @@ Como se puede ver en la Figura \ref{fig:conf_red}, para establecer la comunicaci
     \label{fig:conf_red}
 \end{figure}
 
-Respecto a la presentación de resultados, únicamente se muestran las métricas de una de las instancias debido a que ambas presentan comportamientos prácticamente idénticos bajo las mismas condiciones de red, ambas máquinas con más de 100 Mbps de ancho de banda. Las pequeñas variaciones observadas (típicamente < 5\%) se deben principalmente a diferencias en el hardware de captura (WebCam integrada vs. externa) y no representan diferencias significativas en el rendimiento del protocolo, por lo que supone una comodidad y una manera mas eficiente poner los resultados de una de las instancias para no extender demasiado este documento. Además, todas las ejecuciones de los distintos módulos se han realizado con los parámetros por defecto (\textbf{320x240} y \textbf{30 FPS}), salvo que se indique lo contrario en el comando ejecución antes de la realización del experimento, así como también el módulo de \textit{Minimal\_Video\_Resolution} que se indica en cada ejecución la resolución utilizada y FPS concretos (en la mayoría de los casos \textbf{350x250} y \textbf{12 FPS}).
+Respecto a la presentación de resultados, únicamente se muestran las métricas de una de las instancias debido a que ambas presentan comportamientos prácticamente idénticos bajo las mismas condiciones de red, ambas máquinas con más de 100 Mbps de ancho de banda. Las pequeñas variaciones observadas (típicamente < 5\%) se deben principalmente a diferencias en el hardware de captura (WebCam integrada vs. externa) y no representan diferencias significativas en el rendimiento del protocolo, por lo que supone una comodidad y una manera mas eficiente poner los resultados de una de las instancias para no extender demasiado este documento. Además, todas las ejecuciones de los distintos módulos se han realizado con los parámetros por defecto (\textbf{320x240} y \textbf{30 FPS}), salvo que se indique lo contrario en el comando ejecución que se muestra antes de la realización del experimento, así como también el módulo de \textit{Minimal\_Video\_Resolution} que se indica en cada ejecución la resolución utilizada y FPS concretos (en la mayoría de los casos \textbf{350x250} y \textbf{12 FPS}).
 \vspace{\baselineskip}
 
-Como línea de trabajo futuro, sería recomendable implementar la funcionalidad de transmisión de vídeo pregrabado en lugar de captura en tiempo real. Esta mejora permitiría realizar pruebas más controladas y reproducibles, eliminando las variaciones introducidas por las diferencias en los dispositivos de captura y proporcionando una base de comparación más objetiva para evaluar el rendimiento del protocolo bajo diferentes condiciones de red.
-\newpage
+Como línea de trabajo futuro, sería recomendable implementar la funcionalidad de transmisión de vídeo pregrabado en lugar de captura en tiempo real. Esta mejora permitiría realizar pruebas más controladas y reproducibles, eliminando las variaciones introducidas por las diferencias en los dispositivos de captura y proporcionando una base de comparación más objetiva para evaluar el rendimiento del protocolo bajo diferentes condiciones de red. 
+
 
 \subsection{Pruebas de robustez ante degradación de red}
 
-Esta parte de la memoria es la más importante, ya que aquí se presentan los resultados obtenidos a partir de la implementación de los códigos ya explicados. En este capítulo, se procederá a simular distintas condiciones reales de red utilizando la herramienta ``tc''\footnote{Para más información sobre el comando, visitar: https://man7.org/linux/man-pages/man8/tc.8.html} de Linux. Se analizará el comportamiento de \textit{InterCom} bajo diferentes condiciones de ancho de banda, retardo y pérdida de paquetes. Finalmente, se extraerán las conclusiones sobre dicho comportamiento del módulo, así como, la robustez y limitaciones del sistema.
+Esta parte de la memoria es la más importante, ya que aquí se presentan los resultados obtenidos a partir de la implementación de los códigos ya explicados. En este capítulo, se procederá a simular distintas condiciones reales de red utilizando la herramienta ``tc''\footnote{Para más información sobre el comando, visitar: https://man7.org/linux/man-pages/man8/tc.8.html} de Linux. Se analizará el comportamiento de \textit{InterCom} bajo diferentes condiciones de ancho de banda, retardo y pérdida de paquetes. Finalmente, se extraerán las conclusiones sobre dicho comportamiento del módulo, así como, la robustez y limitaciones del sistema. 
+\vspace{\baselineskip}
+
+\textbf{Para la muestra de ejecución de todas las pruebas, se mostrará un frame recibido del Portátil en el que se me verá mover la mano para poder comprobar los efectos de los distintos parámetros que condicionan la red.} 
 \vspace{\baselineskip}
 
 A continuación, se comentan los distintos tipos de pruebas que se van realizar en cada subsección de este punto de la memoria:
@@ -933,7 +936,7 @@ QObject::~QObject: Timers cannot be stopped from another thread
 
 La imagen de la Figura \ref{fig:minimal_video_resolution_1mbps} es una captura del vídeo recibido en esta prueba.
 \begin{center}
-  \includegraphics[width = 0.8\textwidth]{images/VideoRecibido1.3.png}
+  \includegraphics[width = 0.7\textwidth]{images/VideoRecibido1.3.png}
   \captionof{figure}{Vídeo recibido en \textit{Minimal\_Video\_Resolution} para ancho de banda de 1 Mbps.}
   \label{fig:minimal_video_resolution_1mbps}
 \end{center}
@@ -1357,7 +1360,7 @@ QObject::~QObject: Timers cannot be stopped from another thread
 
 La imagen de la Figura \ref{fig:minimal_video_resolution_10mbps} es una captura del vídeo recibido en esta prueba.
 \begin{center}
-  \includegraphics[width = 0.8\textwidth]{images/VideoRecibido2.3.png}
+  \includegraphics[width = 0.7\textwidth]{images/VideoRecibido2.3.png}
   \captionof{figure}{Vídeo recibido en \textit{Minimal\_Video\_Resolution} para ancho de banda de 10 Mbps.}
   \label{fig:minimal_video_resolution_10mbps}
 \end{center}
@@ -1372,7 +1375,7 @@ Ahora, se procederá a extraer las conclusiones correspondientes a las pruebas r
 El comportamiento de \textit{Minimal\_Video} bajo el límite del ancho de banda de 10 Mbps mejora notablemente respecto a la prueba de 1 Mbps. Según las estadísticas globales, el módulo intentó enviar 5481.62 kbps de vídeo y 860.65 kbps de audio, logrando recibir 4927.59 kbps de vídeo y 798.34 kbps de audio. Esto indica que la mayor parte de los datos logra transmitirse correctamente, y la experiencia del usuario es considerablemente mejor: el vídeo y el audio son reconocibles y, en general, la comunicación es funcional.
 \vspace{\baselineskip}
 
-Sin embargo, la presencia de mensajes como ``Socket bloqueado al enviar fragmento X'' (por ejemplo, entre el ciclo 4 y 5, y entre el ciclo 5 y 6) indica que el módulo sigue generando picos de tráfico o un flujo sostenido que, en ocasiones, sobrepasa la capacidad de la red. En dichos ciclos, el socket bloquea temporalmente el envío de nuevos paquetes hasta aliviar la congestión en la cola de red. Esto produce cortes y congelaciones puntuales. El sistema funciona, pero la fluidez no es óptima y aún existen limitaciones para un uso completamente estable.
+Sin embargo, la presencia de mensajes como ``Socket bloqueado al enviar fragmento X'' (por ejemplo, entre el ciclo 4 y 5, y entre el ciclo 5 y 6) indica que el módulo sigue generando picos de tráfico o un flujo sostenido que, en ocasiones, sobrepasa la capacidad de la red. En dichos ciclos, el socket bloquea temporalmente el envío de nuevos paquetes hasta aliviar la congestión en la cola de red. Es cierto que los fotogramas individuales que logran transmitirse pueden mantener una buena calidad visual, como se observa en la Figura \ref{fig:minimal_video_fps_10mbps}, estos bloqueos pueden resultar en una experiencia visual con interrupciones momentáneas en la fluidez o la aparición de artefactos leves que no son evidentes en cada fotograma individual capturado. El sistema funciona y la comunicación es reconocible, pero la fluidez no es perfectamente constante y aún existen limitaciones para un uso completamente estable.
 
 \vspace{\baselineskip}
 
@@ -1392,7 +1395,7 @@ La sección de ``Estadísticas de FPS'' revela que, pese a tener de objetivo 12 
 En este caso, el módulo intenta transmitir vídeo a 12 FPS y una resolución objetivo de 350x250 píxeles (ajustando realmente a 352x288, que es la resolución compatible según la cámara). Los datos globales muestran que se enviaron 3477.81 kbps de vídeo (con 3234.63 kbps recibidos) y 546.99 kbps de audio (recibidos en su totalidad). La recepción de vídeo y audio es considerable, lo que es una mejora respecto al módulo \textit{Minimal\_Video\_FPS}.
 \vspace{\baselineskip}
 
-Las ``Estadísticas de FPS'' indican un promedio real de 1.6 FPS frente al objetivo de 12 (eficiencia del 13.7\%). Aunque se recibe vídeo, la eficiencia de FPS sigue siendo baja, lo que demuestra que la red aún presenta un cuello de botella para alcanzar la tasa de fotogramas deseada. Los mensajes de ``Socket bloqueado'' (visibles entre los ciclos 4 y 5, 5 y 6, etc.) confirman esta congestión. El tiempo de reescalado promedio es de 6.47 ms, con un impacto en CPU del 7.8\%, lo cual es manejable. El sistema transmite vídeo y audio, pero la fluidez es muy pobre debido la limitación de la red para sostener 12 FPS.
+Las ``Estadísticas de FPS'' indican un promedio real de 1.6 FPS frente al objetivo de 12 (eficiencia del 13.7\%). Aunque se recibe vídeo y los fotogramas individuales pueden mostrar una calidad visual aceptable como se aprecia en la Figura \ref{fig:minimal_video_resolution_10mbps}, la eficiencia de FPS es baja. Esto resulta en una experiencia de vídeo con una fluidez muy limitada y una percepción de movimiento entrecortada, ya que la tasa de actualización de la imagen es significativamente inferior a la deseada.  Los mensajes de ``Socket bloqueado'' (visibles entre los ciclos 4 y 5, 5 y 6, etc.) confirman esta congestión. El tiempo de reescalado promedio es de 6.47 ms, con un impacto en CPU del 7.8\%, lo cual es manejable. El sistema transmite vídeo y audio, pero la fluidez es muy pobre debido la limitación de la red para sostener 12 FPS.
 \vspace{\baselineskip}
 
 \textbf{Conclusiones para limitación 10 Mbps de tasa de transferencia:}
@@ -1604,7 +1607,7 @@ QObject::~QObject: Timers cannot be stopped from another thread
 \newpage
 La imagen de la Figura \ref{fig:minimal_video_resolution_50mbps} es una captura del vídeo recibido en esta prueba.
 \begin{center}
-  \includegraphics[width = 0.8\textwidth]{images/VideoRecibido3.3.png}
+  \includegraphics[width = 0.7\textwidth]{images/VideoRecibido3.3.png}
   \captionof{figure}{Vídeo recibido en \textit{Minimal\_Video\_Resolution} para ancho de banda de 50 Mbps.}
   \label{fig:minimal_video_resolution_50mbps}
 \end{center}
@@ -1857,7 +1860,7 @@ QObject::~QObject: Timers cannot be stopped from another thread
 \newpage
 La imagen de la Figura \ref{fig:minimal_video_resolution_0ms} es una captura del vídeo recibido en esta prueba.
 \begin{center}
-  \includegraphics[width = 0.8\textwidth]{images/VideoRecibido4.3.png}
+  \includegraphics[width = 0.7\textwidth]{images/VideoRecibido4.3.png}
   \captionof{figure}{Vídeo recibido en \textit{Minimal\_Video\_Resolution} con latencia base de 0 ms.}
   \label{fig:minimal_video_resolution_0ms}
 \end{center}
@@ -2100,7 +2103,7 @@ QObject::~QObject: Timers cannot be stopped from another thread
 \newpage
 La imagen de la Figura \ref{fig:minimal_video_resolution_100ms} es una captura del vídeo recibido en esta prueba.
 \begin{center}
-  \includegraphics[width = 0.8\textwidth]{images/VideoRecibido5.3.png}
+  \includegraphics[width = 0.7\textwidth]{images/VideoRecibido5.3.png}
   \captionof{figure}{Vídeo recibido en \textit{Minimal\_Video\_Resolution} con latencia base de 100 ms.}
   \label{fig:minimal_video_resolution_100ms}
 \end{center}
@@ -2353,7 +2356,7 @@ QObject::~QObject: Timers cannot be stopped from another thread
 \newpage
 La imagen de la Figura \ref{fig:minimal_video_resolution_250ms} es una captura del vídeo recibido en esta prueba.
 \begin{center}
-  \includegraphics[width = 0.8\textwidth]{images/VideoRecibido6.3.png}
+  \includegraphics[width = 0.7\textwidth]{images/VideoRecibido6.3.png}
   \captionof{figure}{Vídeo recibido en \textit{Minimal\_Video\_Resolution} con latencia base de 250 ms.}
   \label{fig:minimal_video_resolution_250ms}
 \end{center}
@@ -2612,7 +2615,7 @@ QObject::~QObject: Timers cannot be stopped from another thread
 \newpage
 La imagen de la Figura \ref{fig:minimal_video_resolution_5percent} es una captura del vídeo recibido en esta prueba.
 \begin{center}
-  \includegraphics[width = 0.8\textwidth]{images/VideoRecibido7.3.png}
+  \includegraphics[width = 0.7\textwidth]{images/VideoRecibido7.3.png}
   \captionof{figure}{Vídeo recibido en \textit{Minimal\_Video\_Resolution} con una pérdida del 5\% de paquetes.}
   \label{fig:minimal_video_resolution_5percent}
 \end{center}
@@ -2862,7 +2865,7 @@ QObject::~QObject: Timers cannot be stopped from another thread
 
 La imagen de la Figura \ref{fig:minimal_video_resolution_25percent} es una captura del vídeo recibido en esta prueba.
 \begin{center}
-  \includegraphics[width = 0.8\textwidth]{images/VideoRecibido8.3.png}
+  \includegraphics[width = 0.7\textwidth]{images/VideoRecibido8.3.png}
   \captionof{figure}{Vídeo recibido en \textit{Minimal\_Video\_Resolution} con una pérdida del 25\% de paquetes.}
   \label{fig:minimal_video_resolution_25percent}
 \end{center}
@@ -3106,7 +3109,7 @@ QObject::~QObject: Timers cannot be stopped from another thread
 
 La imagen de la Figura \ref{fig:minimal_video_resolution_50percent} es una captura del vídeo recibido en esta prueba.
 \begin{center}
-  \includegraphics[width = 0.8\textwidth]{images/VideoRecibido9.3.png}
+  \includegraphics[width = 0.7\textwidth]{images/VideoRecibido9.3.png}
   \captionof{figure}{Vídeo recibido en \textit{Minimal\_Video\_Resolution} con una pérdida del 50\% de paquetes.}
   \label{fig:minimal_video_resolution_50percent}
 \end{center}
