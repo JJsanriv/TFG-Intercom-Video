@@ -2,13 +2,13 @@
 
 \subsection{Acerca del proyecto}
 
-El presente Trabajo Fin de Grado parte de un programa ya preexistente que se usa y estudia en la asignatura Tecnologías Multimedia, el cual se llama \textit{Intercom}. \textit{Intercom} es una solución de comunicación bidireccional, al principio solo de audio, pero este trabajo trata y logra solucionar el mismo problema implementando además la transmisión simultánea de vídeo. Por lo tanto, dicha aplicación permite la transmisión de audio y vídeo en tiempo real, simultáneamente. Su diseño se enfoca en la eficiencia y calidad de la señal de audio, así como en la eficiencia y distintas posibles configuraciones de vídeo, pudiendo cambiar tanto la resolución del mismo como su \textit{FPS} (Cuadros por segundo, Frame per Second por sus siglas en inglés). Este sistema está preparado para ejecutarse en entornos con limitaciones de ancho de banda y en prácticamente cualquier dispositivo, por poco potente que sea, debido a su alta eficiencia y poca complejidad computacional.
+El presente Trabajo Fin de Grado parte de un programa ya preexistente que se usa y estudia en la asignatura Tecnologías Multimedia, el cual se llama \textit{InterCom}. \textit{InterCom} es una solución de comunicación bidireccional, al principio solo de audio, pero este trabajo trata y logra solucionar el mismo problema implementando además la transmisión simultánea de vídeo. Por lo tanto, dicha aplicación permite la transmisión de audio y vídeo en tiempo real, simultáneamente. Su diseño se enfoca en la eficiencia y calidad de la señal de audio, así como en la eficiencia y distintas posibles configuraciones de vídeo, pudiendo cambiar tanto la resolución del mismo como su \textit{FPS} (Cuadros por segundo, Frame per Second por sus siglas en inglés). Este sistema está preparado para ejecutarse en entornos con limitaciones de ancho de banda y en prácticamente cualquier dispositivo, por poco potente que sea, debido a su alta eficiencia y poca complejidad computacional.
 \vspace{\baselineskip}
 
 \textit{InterCom}, que se encuentra en el repositorio de la asignatura\footnote{https://github.com/Tecnologias-multimedia/InterCom}, utiliza técnicas avanzadas de procesamiento de señales, así como implementa diversos algoritmos de compresión de datos y optimización de la transmisión de flujos multimedia a través de los diversos módulos que contiene el mismo. 
 
 \vspace{\baselineskip}
-Todo el código, tanto preexiste como implementado en este trabajo, es en el lenguaje de programación Python. Además, esta memoria, ha sido redactada y compuesta en su totalidad en lenguaje \LaTeX~(Ver Figura \ref{fig:latex}), un sistema de preparación de documentos que permite la creación de documentos de alta calidad tipográfica y es ampliamente utilizado en el ámbito académico y científico. La elección de \LaTeX para la redacción de esta memoria no solo garantiza una presentación profesional, sino que también facilita la inclusión de tablas, gráficos y referencias bibliográficas de manera eficiente, personalizada y organizada.
+Todo el código, tanto preexiste como implementado en este trabajo, es en el lenguaje de programación Python. Además, esta memoria, ha sido redactada y compuesta en su totalidad en lenguaje \LaTeX~(Ver Figura \ref{fig:latex}), un sistema de preparación de documentos que permite la creación de documentos de alta calidad tipográfica y es ampliamente utilizado en el ámbito académico y científico. La elección de \LaTeX~para la redacción de esta memoria no solo garantiza una presentación profesional, sino que también facilita la inclusión de tablas, gráficos y referencias bibliográficas de manera eficiente, personalizada y organizada.
 
 \vspace{\baselineskip}
 \begin{center}
@@ -19,7 +19,7 @@ Todo el código, tanto preexiste como implementado en este trabajo, es en el len
 \vspace{\baselineskip}
 
 \subsection{Justificación y objetivos del proyecto}
-La justificación de este proyecto está claramente fundamentada en diversos factores que son altamente relevantes en los tiempos actuales, sobre todo en las áreas académicas, tecnológicas y sociales. Evidentemente, en el mundo tan interconectado en el que vivimos, la comunicación multimedia ha adquirido una importancia crucial en múltiples ámbitos, desde la educación hasta el ámbito profesional y personal. La necesidad de herramientas eficientes y efectivas para la comunicación audiovisual es cada vez más evidente, especialmente en un contexto donde la interacción a distancia se ha vuelto la orden del día~\cite{GSMA}.
+La justificación de este proyecto está claramente fundamentada en diversos factores que son altamente relevantes en los tiempos actuales, sobre todo en las áreas académicas, tecnológicas y sociales. Evidentemente, en el mundo tan interconectado en el que vivimos, la comunicación multimedia ha adquirido una importancia crucial en múltiples ámbitos, desde la educación hasta el ámbito profesional y personal. La necesidad de herramientas eficientes y efectivas para la comunicación audiovisual es cada vez más evidente, especialmente en un contexto donde la interacción a distancia se ha vuelto la orden del día, según confirma el I.N.E.~\cite{ine_informe}.
 \vspace{\baselineskip}
 
 El objetivo principal es facilitar una comunicación clara y fluida, que ya existía en la versión antigua de \textit{InterCom} con el audio, mejorándola con el añadido, como ya se ha comentado, de la transmisión simultánea de audio y vídeo, permitiendo distintas configuraciones de parámetros de vídeo. Principalmente, lo que se busca con este proyecto es la investigación y desarrollo de la herramienta \textit{InterCom} en un enfoque académico, en el cual se expanda el funcionamiento actual del mismo para descubrir nuevas maneras de desarrollar y profundizar en las herramientas de intercomunicación, como se ha hecho en el caso del vídeo en este proyecto.
@@ -29,12 +29,12 @@ Evidentemente, se desea lograr este objetivo intentando minimizar la latencia y 
 
 \vspace{\baselineskip}
 
-Entre los objetivos del proyecto estan:
+Entre los objetivos del proyecto están:
 
 \begin{itemize}
 	\item Desarrollar los sistemas necesarios para la captura, transmisión, recepción y visualización del vídeo en tiempo real, fundamentales para la realización de este proyecto.
 	\item Garantizar la compatibilidad con el subsistema de audio preexistente y los módulos derivados.
-	\item Desarrollo de diversos módulos adicionales para mejorar/adaptar \textit{InterCom} teniendo en cuenta distintas situaciones posibles de ejecución por parte del usuario. Entre ellas, reescalar las distintas resoluciones solicitadas por el usuario a las permitidas por el dispositivo de la cámara así como, ajustar los Cuadros por Segundo (\textit{FPS}) deseados por el usuario haciendo que sean compatibles con dicha resolución.
+	\item Desarrollo de diversos módulos adicionales para mejorar \textit{InterCom} teniendo en cuenta distintas situaciones posibles de ejecución por parte del usuario. Entre ellas, reescalar las distintas resoluciones solicitadas por el usuario a las permitidas por el dispositivo de la cámara así como, ajustar los Cuadros por Segundo (\textit{FPS}) deseados por el usuario haciendo que sean compatibles con dicha resolución.
 \end{itemize}
 \vspace{\baselineskip}
 
@@ -48,7 +48,7 @@ Antes de la realización de este proyecto, \textit{InterCom} contaba con una est
 \textit{Minimal\_Video\_Resolution}. 
 
 \vspace{\baselineskip}
-Por lo tanto, al implementar los nuevos módulos, la estructura quedaría de la sigueinte manera:
+Por lo tanto, al implementar los nuevos módulos, la estructura quedaría de la siguiente manera:
 
 \begin{center}
 	\includegraphics[width = 1.01\textwidth]{images/jerarquia_modulos.png}
@@ -63,7 +63,7 @@ Como se puede observar en la figura, el sistema se compone de varios módulos, c
 Por mencionar algunos de los módulos que se pueden observar en la Figura \ref{fig:jeraquia} y su funcionamiento, por ejemplo, el módulo \textit{Buffering} implementa una estructura de búfer de acceso aleatorio para ocultar el jitter\footnote{El jitter simplemente es la fluctuación a la variabilidad temporal durante el envío de señales digitales, una ligera desviación de la exactitud de la señal de reloj. El jitter suele considerarse como una señal de ruido no deseada.}. Otro módulo que puede ser digno de mención es \textit{DEFLATE\_raw}, que implementa el algoritmo de compresión DEFLATE\footnote{El algoritmo DEFLATE se usa para la compresión de datos sin pérdidas que usa una combinación del algoritmo LZ77 y la codificación Huffman.} para comprimir cada trozo (chunk).
 
 \vspace{\baselineskip}
-En nuestro caso, nos centraremos en el módulo \textit{Minimal\_Video} y su versión \textit{verbose}\footnote{La versión verbose simplemente muestra al ejecutar, estadísticas y datos adicionales a la versión normal.}, que son los que estan resaltados en la figura, así como, los módulos \textit{Minimal\_Video\_FPS} y \textit{Minimal\_Video\_Resolution} y sus versiones \textit{verbose} correspondiente, que son los que se han implementado y desarrollado en este trabajo.
+En nuestro caso, nos centraremos en el módulo \textit{Minimal\_Video} y su versión \textit{verbose}\footnote{La versión verbose simplemente muestra al ejecutar, estadísticas y datos adicionales a la versión normal.}, que son los que están resaltados en la figura, así como, los módulos \textit{Minimal\_Video\_FPS} y \textit{Minimal\_Video\_Resolution} y sus versiones \textit{verbose} correspondiente, que son los que se han implementado y desarrollado en este trabajo.
 
 \vspace{\baselineskip}
 Como hemos comentado, el módulo \textit{Minimal\_Video} es el encargado de la transmisión de vídeo y audio en tiempo real. Este módulo se basa en el módulo \textit{Minimal} y añade la funcionalidad de captura, transmisión y recepción de vídeo, permitiendo una comunicación multimedia más completa. La versión \textit{verbose} proporciona información adicional sobre el rendimiento del sistema durante la ejecución. \textit{Minimal\_Video} será nuestro módulo base para los otros dos módulos adicionalmente implementados y desarrollados en este trabajo \textit{Minimal\_Video\_FPS} y \textit{Minimal\_Video\_Resolution}. En la Tabla \ref{tab:modulos} se muestra una comparativa resumida de que hace cada módulo implementado así como de quien hereda, información sobre su versión \textit{verbose} y posibles casos de uso.
@@ -180,12 +180,12 @@ A continuación, en la Figura \ref{fig:planb} se puede observar el Diagrama de G
     \ganttbar[bar/.style={fill=red!70}]{Real}{2024-11-11}{2025-05-08} \\
     \ganttmilestone{Finalización implementación}{2025-05-08} \\
     % Tarea 4: Memoria
-    \ganttgroup{\textbf{Realización memoria proyecto}}{2025-05-01}{2025-06-02} \\
+    \ganttgroup{\textbf{Realización memoria proyecto}}{2025-05-01}{2025-06-04} \\
     \ganttbar[bar/.style={fill=blue!70}]{Estimado}{2025-05-01}{2025-05-31} \\
-    \ganttbar[bar/.style={fill=red!70}]{Real}{2025-05-09}{2025-06-02} \\
-    \ganttmilestone{Entrega proyecto}{2025-06-03} \\
+    \ganttbar[bar/.style={fill=red!70}]{Real}{2025-05-09}{2025-06-04} \\
+    \ganttmilestone{Entrega proyecto}{2025-06-04} \\
 \end{ganttchart}
-\caption{Planificación del proyecto sobre \LaTeX~ con tiempos estimados y reales.}
+\caption{Planificación del proyecto sobre \LaTeX~con tiempos estimados y reales.}
 \label{fig:planb}
 \end{figure}
 
@@ -200,7 +200,7 @@ A partir de ahí, se procedió a analizar el código ya existente en \textit{Int
 Seguidamente, se realizó el anteproyecto que fue rápido de redactar y se entregó el \textbf{20 de septiembre} y justamente después, se comenzó con la implementación del código que fue la fase más larga del proyecto y que se finalizó el \textbf{8 de mayo}. 
 \vspace{\baselineskip}
 
-Por último, se realizará la entrega de esta memoria del proyecto, a priori, para aproximadamente el \textbf{3 de junio}. Como se puede observar, los tiempos reales han sido superiores a los estimados en la mayoría de los casos sobre todo en la implementación del código ya que hubo que realizar distintas pruebas para que los módulos implementados en este trabajo estuvieran correctamente integrados con los demás que ya había previamente en \textit{InterCom}, así como, la posterior optimización de los mismos que es la última etapa de la implementación, lo cual es normal en este tipo de proyectos.
+Por último, se realizará la entrega de esta memoria del proyecto para aproximadamente el \textbf{4 de junio}. Como se puede observar, los tiempos reales han sido superiores a los estimados en la mayoría de los casos sobre todo en la implementación del código ya que hubo que realizar distintas pruebas para que los módulos implementados en este trabajo estuvieran correctamente integrados con los demás que ya había previamente en \textit{InterCom}, así como, la posterior optimización de los mismos que es la última etapa de la implementación, lo cual es normal en este tipo de proyectos.
 
 \vspace{\baselineskip}
 Con esto acaba el capítulo de \textit{Introducción}. En el siguiente capítulo, se presentará la metodología utilizada para el desarrollo del proyecto, incluyendo los pasos seguidos y las herramientas empleadas así como, la explicación completa del código desarrollado. 

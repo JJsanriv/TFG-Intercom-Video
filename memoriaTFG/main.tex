@@ -26,6 +26,12 @@
           \end{tabular}}
     \end{tabular}
     \vfill
+    % Añadir tilde sobre la I de ALMERIA
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[anchor=north] at ([xshift=547pt, yshift=730pt]current page.south west) {
+            \fontsize{20pt}{22pt}\selectfont \textbf{\textasciiacute}
+        };
+    \end{tikzpicture}
     \begin{tikzpicture}[remember picture, overlay]
         \node[anchor=south west, inner sep=0pt] at ([xshift=5.3cm, yshift=5.1cm]current page.south west) {
             \Huge \textbf{Curso 2024/2025}

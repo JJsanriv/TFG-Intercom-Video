@@ -90,7 +90,7 @@ Entonces, una vez mirado la interfaz de red, que en mi caso es \textit{enp0s3}, 
 
 \vspace{\baselineskip}
 
-Primero, habrá que mirar que no hay ninguna regla prestablecida en la interfaz de red. Para ello, se ejecutará el siguiente comando:
+Primero, habrá que mirar que no hay ninguna regla preestablecida en la interfaz de red. Para ello, se ejecutará el siguiente comando:
 \begin{lstlisting}[language=bash]
 sudo tc qdisc show dev enp0s3
 \end{lstlisting}
@@ -111,7 +111,7 @@ Ahora, ya se puede aplicar la regla de red deseada. Para ello, se utilizarán lo
     \begin{lstlisting}[language=bash, breaklines=true]
     sudo tc qdisc add dev enp0s3 root tbf rate Xmbit burst 1mbit latency 5000ms
 \end{lstlisting}
-    Donde el valor de \texttt{burst} es el tamaño del paquete máximo que se puede enviar en un momento dado y el valor de \texttt{latency} es el tiempo máximo que se puede esperar para enviar un paquete. En este caso, se ha puesto un valor de 1 Mbit y 5000 ms\footnote{El parámetro \texttt{latency 5000ms} define el tiempo máximo que un paquete puede estar en cola antes de ser descartado. Se usa un valor alto (5 segundos) para evitar que este timeout interfiera con las pruebas de limitación de ancho de banda, asegurando que solo se mida el efecto del parámetro \texttt{rate} que es el que nos interesa.} respectivamente, pero no alterarán el resultado de la prueba.
+    Donde el valor de \texttt{burst} es el tamaño del paquete máximo que se puede enviar en un momento dado y el valor de \texttt{latency} es el tiempo máximo que se puede esperar para enviar un paquete. En este caso, se ha puesto un valor de 1 Mbit y 5000 ms\footnote{El parámetro \texttt{latency 5000ms} define el tiempo máximo que un paquete puede estar en cola antes de ser descartado. Se usa un valor alto (5 segundos) para evitar que este ``timeout'' interfiera con las pruebas de limitación de ancho de banda, asegurando que solo se mida el efecto del parámetro \texttt{rate} que es el que nos interesa.} respectivamente, pero no alterarán el resultado de la prueba.
     \item Para añadir un retardo de X ms, donde X es el valor deseado:
     \begin{lstlisting}[language=bash]
     sudo tc qdisc add dev enp0s3 root netem delay Xms
@@ -148,6 +148,8 @@ Antes de presentar los resultados detallados de los experimentos, es necesario d
       \boxed{\text{FPS}_E = \frac{\text{FPS}_R}{\text{FPS}\text{~Objetivo}} \times 100}
     \end{center}
 
+    \newpage
+
     \item \textbf{Tiempo de Reescalado (TR):} Es específico del módulo \texttt{Minimal\_Video\_Resolution}. Representa el tiempo promedio, medido en milisegundos (ms), que el módulo demora en reescalar cada fotograma de vídeo a la resolución deseada.
     \begin{center}
       \boxed{ \text{TR (ms)} = \left( \frac{\sum \text{Tiempo de reescalado por fotograma}}{\text{Número total de fotogramas reescalados}} \right) \times 1000 }
@@ -168,7 +170,7 @@ Antes de nada, se mostrará en la Figura~\ref{fig:ejecucion_doble} una ejecució
 \vspace{\baselineskip}
 
 Empezaremos por un ejemplo normal de ejecución del módulo \textit{Minimal\_Video} sin ningún tipo de restricción de red.
-\begin{figure}
+\begin{figure} [htbp]
   \centering
   \begin{subfigure}{\textwidth}
     \centering
@@ -293,6 +295,8 @@ A continuación, un ejemplo de ejecución común de \textit{Minimal\_Video\_FPS}
 	\label{fig:ejecucion_fps}
 \end{center}
 \vspace{\baselineskip}
+
+\newpage
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
 (TM) jj@jj-XubuntuPC:~/TFG-Intercom-Video/src$ python minimal_video_fps.py --show_video 
@@ -422,11 +426,7 @@ QObject::~QObject: Timers cannot be stopped from another thread
 En esta sección se presentan los resultados obtenidos al ejecutar los módulos bajo diferentes condiciones de ancho de banda. 
 \vspace{\baselineskip}
 
-\begin{itemize}
-    \item \textbf{Pruebas de limitación de la tasa de transferencia}:
-\end{itemize}
-
-\textbf{Pruebas de limitación de la tasa de transferencia a 1 Mbps}
+\textbf{Pruebas de limitación de la tasa de transferencia a 1 Mbps.}
 \vspace{\baselineskip}
 
 Empezaremos por probar el módulo con un ancho de banda muy bajo, 1 Mbps. El comando usado para \textit{Minimal\_Video} ha sido el siguiente:
@@ -625,7 +625,7 @@ Ahora, ejecutaremos el módulo \textit{Minimal\_Video\_FPS} con el mismo ancho d
     python minimal_video_fps.py -a 192.168.0.58 --show_video --show_stats -z 12
 \end{lstlisting}
 
-Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
+Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el número de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
 
 A continuación, se probará el módulo con un ancho de banda muy bajo, de 1 Mbps. El resultado obtenido ha sido el siguiente:
 \vspace{\baselineskip}
@@ -1022,7 +1022,7 @@ En general, estas pruebas demuestran que este ancho de banda es insuficiente par
 
 \newpage
 
-\textbf{Pruebas de limitación de la tasa de transferencia a 10 Mbps}
+\textbf{Pruebas de limitación de la tasa de transferencia a 10 Mbps.}
 \vspace{\baselineskip}
 
 Empezaremos por probar el módulo con un ancho de banda bajo, 10 Mbps. El comando usado para \textit{Minimal\_Video} ha sido el siguiente:
@@ -1126,7 +1126,7 @@ Ahora, ejecutaremos el módulo \textit{Minimal\_Video\_FPS} con el mismo ancho d
 \begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
     python minimal_video_fps.py -a 192.168.0.58 --show_video --show_stats -z 12
 \end{lstlisting}
-Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
+Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el número de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
 
 A continuación, se probará el módulo con un ancho de banda bajo, de 10 Mbps. El resultado obtenido ha sido el siguiente:
 \vspace{\baselineskip}
@@ -1447,7 +1447,7 @@ La ejecución de los módulos con un ancho de banda de 10 Mbps muestra resultado
 
 \newpage
 
-\textbf{Pruebas de limitación de la tasa de transferencia a 50 Mbps}
+\textbf{Pruebas de limitación de la tasa de transferencia a 50 Mbps.}
 \vspace{\baselineskip}
 
 Empezaremos por probar el módulo con un ancho de banda alto, 50 Mbps. El comando usado para \textit{Minimal\_Video} ha sido el siguiente:
@@ -1508,7 +1508,7 @@ Ahora, ejecutaremos el módulo \textit{Minimal\_Video\_FPS} con el mismo ancho d
 \begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
     python minimal_video_fps.py -a 192.168.0.58 --show_video --show_stats -z 12
 \end{lstlisting}
-Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
+Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el número de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -1698,13 +1698,9 @@ Esta prueba demuestra que un ancho de banda de 50 Mbps es suficiente para una ex
 \subsubsection{Experimentos con jitter}
 
 En esta sección, se analizarán los resultados obtenidos al aplicar una limitación de latencia (delay) a los distintos módulos.
-
-\begin{itemize}
-    \item \textbf{Pruebas con jitter)}
-\end{itemize}
-
-\textbf{Pruebas con jitter mínimo (Latencia ideal de 0 ms)}
 \vspace{\baselineskip}
+
+\textbf{Pruebas con jitter mínimo y latencia ideal de 0 ms.}
 
 Comenzamos probando con una latencia ideal de 0 ms, lo que implica un jitter mínimo o despreciable, inherente a la red local.
 
@@ -1767,7 +1763,7 @@ Ahora, ejecutaremos el módulo \textit{Minimal\_Video\_FPS} con la misma latenci
 \begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
     python minimal_video_fps.py -a 192.168.0.58 --show_video --show_stats -z 12
 \end{lstlisting}
-Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
+Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el número de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
 \vspace{\baselineskip}
 
 
@@ -1948,7 +1944,7 @@ Las pruebas con latencia base cero y jitter mínimo nos muestran claramente el r
 Estas pruebas establecen muestran un rendimiento óptimo. Demuestran que, si bien eliminar el jitter mejora la estabilidad y la eficiencia de la transmisión, alcanzar tasas de fotogramas más altas requiere optimizaciones adicionales en el procesamiento del vídeo, la captura de la cámara, y posiblemente en la propia lógica de control de FPS de los módulos, independientemente de las condiciones de la red.
 \newpage
 
-\textbf{Pruebas con jitter moderado (Latencia de 100 ms):}
+\textbf{Pruebas con jitter moderado y latencia de 100ms.}
 \vspace{\baselineskip}
 
 Ahora, se procederá a realizar las pruebas introduciendo una latencia base de 100 ms, lo cual, en la práctica, también implica una mayor variación en los tiempos de llegada de los paquetes (jitter).
@@ -2011,7 +2007,7 @@ Ahora, ejecutaremos el módulo \textit{Minimal\_Video\_FPS} con una latencia bas
 \begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
     python minimal_video_fps.py -a 192.168.0.58 --show_video --show_stats -z 12
 \end{lstlisting}
-Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
+Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el número de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -2176,7 +2172,7 @@ La sección de ``Estadísticas de FPS'' es notable: el módulo consigue un prome
 Este módulo, combinando control de FPS y resolución reescalada, también muestra un buen rendimiento bajo una latencia base de 100ms y el jitter asociado. Los datos globales indican una transmisión de audio de 896.90 kbps (recibiendo 860.39 kbps, un 95.9\%) y de vídeo de 12506.10 kbps (recibiendo 11479.56 kbps, un 91.8\%). Estos porcentajes de recepción son altos, indicando una transmisión de datos eficiente.
 \vspace{\baselineskip}
 
-Las ``Estadísticas de FPS'' revelan un promedio de 6.6 FPS reales frente al objetivo de 12 FPS, con una eficiencia del 55.4\%. Aunque no tan espectacular como \textit{Minimal\_Video\_FPS}, sigue siendo un buen resultado, superior al obtenido en condiciones de jitter mínimo. El ``Tiempo de reescalado promedio'' es de 5.67 ms, con un impacto en rendimiento del 6.8\%, valores manejables. El módulo logra una buena transmisión de datos y una tasa de fotogramas decente, lo que sugiere una buena adaptación a las condiciones de jitter y latencia.
+Las ``Estadísticas de FPS'' revelan un promedio de 6.6 FPS reales frente al objetivo de 12 FPS, con una eficiencia del 55.4\%. Aunque no tan espectacular como \textit{Minimal\_Video\_FPS}, sigue siendo un buen resultado, superior al obtenido en condiciones de jitter mínimo. El ``Tiempo de reescalado promedio'' es de 5.67 ms, con un impacto en rendimiento del 6.8\%, valores manejables. El módulo logra una buena transmisión de datos y una tasa de fotogramas decente, lo que sugiere que se ajusta eficazmente a las condiciones de jitter y latencia dadas.
 
 \vspace{\baselineskip}
 
@@ -2189,14 +2185,14 @@ La introducción de una latencia base de 100ms y un jitter moderado revela un co
 \item \textbf{Rendimiento excepcional de FPS para \textit{Minimal\_Video\_FPS}:} Este módulo alcanza una eficiencia de FPS del 95.0\% (11.4 FPS reales), el mejor resultado de todas las pruebas. Esto podría indicar que la latencia introducida actúa como un buffer para su mecanismo de control de FPS.
 \item \textbf{Buen rendimiento general de \textit{Minimal\_Video\_Resolution}:} Este módulo también se beneficia, alcanzando una eficiencia de FPS del 55.4\% (6.6 FPS reales) y manteniendo una alta integridad de datos.
 \item \textbf{El jitter no resulta en pérdidas masivas:} Aunque el jitter está presente, su principal impacto parece ser la variabilidad en los tiempos de llegada y las fluctuaciones en las tasas de kbps por ciclo, más que una pérdida catastrófica de paquetes. La latencia de 100ms es el factor dominante en el retraso de la comunicación.
-\item \textbf{Posible efecto de "buffering" por la latencia:} La latencia constante de 100ms podría estar permitiendo que los mecanismos internos de los módulos (especialmente el control de FPS) manejen mejor la secuenciación y el envío de paquetes, incluso con la variabilidad del jitter, al proporcionar más tiempo para la preparación y el envío de los fotogramas.
+\item \textbf{Posible efecto de ``buffering'' por la latencia:} La latencia constante de 100ms podría estar permitiendo que los mecanismos internos de los módulos (especialmente el control de FPS) manejen mejor la secuenciación y el envío de paquetes, incluso con la variabilidad del jitter, al proporcionar más tiempo para la preparación y el envío de los fotogramas.
 \end{itemize}
 
 Estas conclusiones sugieren que una latencia moderada, incluso con jitter, no es relativamente perjudicial para todas las métricas de rendimiento, y en el caso de \textit{Minimal\_Video\_FPS}, parece incluso mejorar la capacidad de alcanzar la tasa de fotogramas objetivo. No obstante, la experiencia del usuario siempre estará marcada por el retraso de 100ms en la interacción.
 
 \newpage
 
-\textbf{Pruebas con jitter grave y latencia de 250ms}
+\textbf{Pruebas con jitter grave y latencia de 250ms.}
 \vspace{\baselineskip}
 
 Ahora, se procederá a realizar las pruebas con una latencia base de 250 ms, lo que implica un nivel de jitter aún más pronunciado.
@@ -2261,7 +2257,7 @@ Ahora, se ejecutará el módulo \textit{Minimal\_Video\_FPS} con una latencia ba
 \begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
     python minimal_video_fps.py -a 192.168.0.58 --show_video --show_stats -z 12
 \end{lstlisting}
-Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
+Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el número de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -2409,14 +2405,14 @@ Ahora, se procederá a analizar los resultados obtenidos en las pruebas realizad
 Al analizar el comportamiento de \textit{Minimal\_Video} bajo una latencia base de 250ms y el jitter severo, observamos un impacto notable pero no un colapso total. Las estadísticas globales muestran que el módulo envía audio a 956.82 kbps (recibiendo 929.90 kbps, un 97.2\%) y vídeo a 11274.19 kbps (recibiendo 10111.51 kbps, un 89.7\%). Estos porcentajes de recepción son bastante altos, indicando que la mayoría de los datos llegan al destino.
 \vspace{\baselineskip}
 
-Sin embargo, el análisis de los ciclos, especialmente el primero, muestra una recepción inicial de vídeo muy baja (89 kbps recibidos de 1836 kbps enviados), lo que refleja el impacto combinado de la alta latencia inicial y el jitter. Aunque los ciclos posteriores muestran una mejor recuperación en la cantidad de datos, la variabilidad asociada a un jitter severo y la alta latencia constante, perjudican significativamente la experiencia del usuario. La comunicación es percibida con un retraso considerable y una falta de fluidez debido a la llegada irregular de los paquetes, manifestándose en "tirones" y desincronizaciones.
+Sin embargo, el análisis de los ciclos, especialmente el primero, muestra una recepción inicial de vídeo muy baja (89 kbps recibidos de 1836 kbps enviados), lo que refleja el impacto combinado de la alta latencia inicial y el jitter. Aunque los ciclos posteriores muestran una mejor recuperación en la cantidad de datos, la variabilidad asociada a un jitter severo y la alta latencia constante, perjudican significativamente la experiencia del usuario. La comunicación es percibida con un retraso considerable y una falta de fluidez debido a la llegada irregular de los paquetes, resultando en tirones e interrupciones.
 
 \vspace{\baselineskip}
 
 \textbf{Análisis de \textit{Minimal\_Video\_FPS} con jitter alto y latencia de 250ms:}
 \vspace{\baselineskip}
 
-Este módulo muestra una adaptación robusta al jitter severo y la alta latencia. Las estadísticas globales indican una transmisión de audio de 945.70 kbps (recibiendo 938.35 kbps, un 99.2\%) y de vídeo de 9929.23 kbps (recibiendo 9173.34 kbps, un 92.4\%). Estos porcentajes de recepción son excelentes, sugiriendo que el control de FPS ayuda a mitigar la pérdida de paquetes incluso en estas condiciones adversas.
+Este módulo muestra una resistencia al jitter severo y la alta latencia. Las estadísticas globales indican una transmisión de audio de 945.70 kbps (recibiendo 938.35 kbps, un 99.2\%) y de vídeo de 9929.23 kbps (recibiendo 9173.34 kbps, un 92.4\%). Estos porcentajes de recepción son excelentes, sugiriendo que el control de FPS ayuda a mitigar la pérdida de paquetes incluso en estas condiciones adversas.
 \vspace{\baselineskip}
 
 En cunato a las ``Estadísticas de FPS'' el módulo consigue mantener 8.3 FPS reales frente al objetivo de 12 FPS, alcanzando una eficiencia del 69.1\%. Para una latencia base tan alta y el jitter severo asociado, este es un rendimiento de FPS promedio muy bueno. Indica que el control de FPS se ajusta para enviar fotogramas a un ritmo que, aunque no ideal, es sostenible bajo estas condiciones extremas. Sin embargo, es importante entender que una media de 8.3 FPS bajo alto jitter no garantiza una visualización perfectamente fluida. La llegada de esos fotogramas será irregular, aunque la cantidad total transmitida sea alta. La experiencia del usuario estará marcada por el retardo de 250ms y una fluidez visual por la variabilidad en la entrega.
@@ -2439,9 +2435,9 @@ Una latencia base de 250ms, con el jitter severo asociado, establece condiciones
 
 \begin{itemize}
 \item \textbf{Alta integridad de datos a pesar del jitter extremo:} Sorprendentemente, los tres módulos mantienen porcentajes de recepción de datos globales muy altos (audio >97\%, vídeo >89\%), lo que indica que la pérdida de paquetes no es el factor dominante, sino la irregularidad en su llegada.
-\item \textbf{Rendimiento de FPS notable bajo condiciones adversas:} \textit{Minimal\_Video\_FPS} destaca con una eficiencia del 69.1\% (8.3 FPS reales), seguido de \textit{Minimal\_Video\_Resolution} con 50.3\% (6.0 FPS reales). Estos valores sugieren que los mecanismos de control de FPS se adaptan para mantener una tasa de envío viable incluso con un jitter muy elevado.
+\item \textbf{Rendimiento de FPS notable bajo condiciones adversas:} \textit{Minimal\_Video\_FPS} destaca con una eficiencia del 69.1\% (8.3 FPS reales), seguido de \textit{Minimal\_Video\_Resolution} con 50.3\% (6.0 FPS reales). Estos valores sugieren que los mecanismos de control de FPS se ajustan para mantener una tasa de envío viable incluso con un jitter muy elevado.
 \item \textbf{Impacto de la latencia y el jitter en la experiencia del usuario:} Aunque se transmiten muchos datos y se logran FPS promedio considerables, la experiencia del usuario estará severamente degradada por el retraso de 250ms y la llegada errática de los fotogramas, causando una sensación de desconexión y falta de fluidez.
-\item \textbf{Adaptabilidad de los módulos con control de FPS:} Los módulos \textit{Minimal\_Video\_FPS} y \textit{Minimal\_Video\_Resolution} muestran una capacidad significativa para ajustarse a un entorno de red muy adverso, priorizando mantener un flujo de fotogramas.
+\item \textbf{Flexibilidad de los módulos con control de FPS:} Los módulos \textit{Minimal\_Video\_FPS} y \textit{Minimal\_Video\_Resolution} muestran una capacidad significativa para ajustarse a un entorno de red muy adverso, priorizando mantener un flujo de fotogramas.
 \item \textbf{El problema de la irregularidad:} Bajo estas condiciones, el principal problema para la calidad de la videollamada no es tanto la pérdida de paquetes (que es baja), sino la enorme variabilidad en los tiempos de llegada, lo que hace imposible una reproducción fluida y sincronizada sin mecanismos de buffering muy sofisticados y tolerantes a grandes retrasos.
 \end{itemize}
 
@@ -2452,11 +2448,8 @@ Estos resultados demuestran que, si bien una latencia base alta y un jitter seve
 
 Ahora, se procederá a analizar los resultados obtenidos en las pruebas realizadas con pérdida de paquetes. 
 \vspace{\baselineskip}
-\begin{itemize}
-  \item \textbf{Pruebas frente a pérdida de paquetes}
-\end{itemize}
 
-\textbf{Pruebas frente a pérdida de paquetes del 5\%:}
+\textbf{Pruebas frente a pérdida de paquetes del 5\%.}
 \vspace{\baselineskip}
 
 Comenzaremos con una pérdida del 5\% de paquetes. El comando usado en \textit{Minimal\_Video} ha sido el siguiente:
@@ -2519,7 +2512,7 @@ Ahora, se ejecutará el módulo \textit{Minimal\_Video\_FPS} con una pérdida de
 \begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
     python minimal_video_fps.py -a 192.168.0.58 --show_video --show_stats -z 12
 \end{lstlisting}
-Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
+Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el número de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -2701,13 +2694,13 @@ La prueba con una pérdida de paquetes moderada del 5\% revela cómo los diferen
 \item \textbf{Impacto directo en la recepción de vídeo:} \textit{Minimal\_Video} muestra una pérdida de datos tanto en audio (4.2\%) como en vídeo (6.9\%), en línea con lo esperado. Sin embargo, \textit{Minimal\_Video\_FPS} y \textit{Minimal\_Video\_Resolution} logran una recepción de audio del 100\% de lo enviado, y pérdidas de vídeo del 4.7\% y 2.6\% respectivamente. Esto sugiere que los mecanismos de control de FPS o la gestión de la transmisión en estos módulos podrían estar priorizando mejor el flujo de audio.
 \item \textbf{Degradación de la eficiencia de FPS:} La pérdida de paquetes afecta significativamente la capacidad de alcanzar los 12 FPS objetivo. \textit{Minimal\_Video\_FPS} alcanza un 47.3\% de eficiencia (5.7 FPS reales) y \textit{Minimal\_Video\_Resolution} un 42.1\% (5.0 FPS reales). Aunque se transmiten muchos datos, la fluidez visual se ve comprometida.
 \item \textbf{Variabilidad en la calidad de la transmisión:} El análisis por ciclos en \textit{Minimal\_Video} (ciclos 7 y 8) y la naturaleza de la pérdida de paquetes implican que la experiencia del usuario será inconsistente, con artefactos visuales e interrupciones de audio que aparecen de forma intermitente.
-\item \textbf{Mecanismos de adaptación:} Los módulos con control de FPS parecen adaptarse a las pérdidas reduciendo la tasa de fotogramas efectiva para intentar asegurar que los fotogramas que se envían y reciben estén lo más completos posible, especialmente \textit{Minimal\_Video\_Resolution} que logra la menor tasa de pérdida de vídeo.
+\item \textbf{Mecanismos de regulación:} Los módulos con control de FPS parecen ajustarse a las pérdidas reduciendo la tasa de fotogramas efectiva para intentar asegurar que los fotogramas que se envían y reciben estén lo más completos posible, especialmente \textit{Minimal\_Video\_Resolution} que logra la menor tasa de pérdida de vídeo.
 \end{itemize}
 
 Estos resultados indican que una pérdida de paquetes del 5\% es un pequeño obstáculo para la comunicación en tiempo real. Aunque los módulos con control de FPS aguantan en la transmisión del audio y una pérdida de vídeo contenida, la fluidez se ve considerablemente afectada.
 \newpage
 
-\textbf{Pruebas frente a pérdida de paquetes del 25\%:}
+\textbf{Pruebas frente a pérdida de paquetes del 25\%.}
 \vspace{\baselineskip}
 
 Ahora, realizaremos las pruebas con una pérdida del 25\% de paquetes. El comando usado en \textit{Minimal\_Video} ha sido el siguiente:
@@ -2769,7 +2762,7 @@ Ahora, se ejecutará el módulo \textit{Minimal\_Video\_FPS} con una pérdida de
 \begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
     python minimal_video_fps.py -a 192.168.0.58 --show_video --show_stats -z 12
 \end{lstlisting}
-Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
+Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el número de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -2935,7 +2928,7 @@ Las ``Estadísticas de FPS'' muestran un dato crítico: el módulo solo alcanza 
 \textbf{Análisis de \textit{Minimal\_Video\_Resolution} con 25\% de pérdida de paquetes:}
 \vspace{\baselineskip}
 
-Este módulo, que combina control de FPS con resolución adaptada, también presenta un rendimiento muy pobre bajo condiciones de pérdida del 25\%. Los datos globales indican una transmisión de audio de 948.40 kbps (recibiendo 487.54 kbps, una pérdida efectiva de audio del 48.6\%) y de vídeo de 4352.12 kbps (recibiendo 3244.00 kbps, una pérdida efectiva de vídeo del 25.5\%). De nuevo, el audio es el más afectado.
+Este módulo, que combina control de FPS con resolución escalable, también presenta un rendimiento muy pobre bajo condiciones de pérdida del 25\%. Los datos globales indican una transmisión de audio de 948.40 kbps (recibiendo 487.54 kbps, una pérdida efectiva de audio del 48.6\%) y de vídeo de 4352.12 kbps (recibiendo 3244.00 kbps, una pérdida efectiva de vídeo del 25.5\%). De nuevo, el audio es el más afectado.
 \vspace{\baselineskip}
 
 Las ``Estadísticas de FPS'' revelan un resultado crítico: apenas 2.1 FPS reales frente al objetivo de 12 FPS, con una eficiencia catastrófica del 17.3\%. En términos prácticos, esto significa una actualización de imagen cada casi medio segundo, lo que hace que la comunicación visual sea completamente inviable. El ``Tiempo de reescalado promedio'' es de 3.98 ms, con un impacto en rendimiento del 4.8\%; estos valores son bajos porque hay muy pocos fotogramas que procesar.
@@ -2956,7 +2949,7 @@ Una pérdida de paquetes del 25\% muestra un escenario extremo que degrada sever
 Estos resultados muestran una pérdida de paquetes del 25\% que sobrepasa la capacidad de los módulos para ofrecer una comunicación mínimamente funcional. En estas condiciones de pérdida, se requerirían protocolos de transmisión mucho más robustos y tolerantes a errores o cambiar a modos de comunicación que demanden mucho menos ancho de banda y sean menos sensibles a la pérdida (como solo audio con códecs muy robustos). Para la videoconferencia tal como está implementada en estos módulos, este nivel de pérdida es insostenible.
 \newpage
 
-\textbf{Pruebas frente a pérdida de paquetes del 50\%}
+\textbf{Pruebas frente a pérdida de paquetes del 50\%.}
 \vspace{\baselineskip}
 
 Finalmente, realizaremos la última prueba por una pérdida del 50\% de paquetes. El comando usado en \textit{Minimal\_Video} ha sido el siguiente:
@@ -3016,7 +3009,7 @@ Ahora, se procederá a ejecutar el módulo \textit{Minimal\_Video\_FPS} con una 
 \begin{lstlisting}[language=bash, basicstyle=\ttfamily\scriptsize]
     python minimal_video_fps.py -a 192.168.0.58 --show_video --show_stats -z 12
 \end{lstlisting}
-Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el numero de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
+Donde \verb|-a| es la dirección IP destino, \verb|--show_video| es para que se active la transmisión de vídeo, \verb|--show_stats| es para que se muestre la información de estadísticas y \verb|-z| es el número de fotogramas por segundo (FPS) que se desea enviar. En este caso, se ha configurado para mostrar el vídeo a 12 FPS.
 \vspace{\baselineskip}
 
 \begin{lstlisting}[language=bash,basicstyle=\ttfamily\tiny]
@@ -3200,6 +3193,7 @@ Una pérdida de paquetes del 50\% representa un escenario donde la comunicación
 Estos resultados demuestran que una pérdida de paquetes del 50\% resulta en la imposibilidad de una comunicación audiovisual en tiempo real. Para una videoconferencia estándar, la comunicación es impracticable.
 \newpage
 
+Por último, se procederá a mostrar la Tabla~\ref{tab:resumen_pruebas_globales} con las estadísticas generales y resumidas de las pruebas realizadas con los tres módulos (\textit{Minimal\_Video}, \textit{Minimal\_Video\_FPS} y \textit{Minimal\_Video\_Resolution}) frente a las diferentes condiciones de ancho de banda, jitter y su latencia asociada, así como también, frente a pérdida de paquetes.
 % Reducir el espacio entre columnas para ganar más espacio para el texto
 \setlength{\tabcolsep}{3pt} 
 

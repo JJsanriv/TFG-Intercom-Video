@@ -1,5 +1,5 @@
 \label{sec:conclusion}
-En este capítulo se presentan las conclusiones obtenidas a partir de las pruebas realizadas con los módulos de videollamada desarrollados, que se resumen en la Tabla \ref{tab:resumen_pruebas_globales}. Estas pruebas abarcan diferentes condiciones de red, incluyendo variaciones en el ancho de banda, latencia, jitter y pérdida de paquetes. Los resultados obtenidos permiten evaluar el rendimiento y la adaptabilidad de cada módulo en situaciones diversas. Finalmente, se sugerirán posibles implementaciones futuras para mejorar el sistema existente y desarrollado en este trabajo.
+En este capítulo se presentan las conclusiones obtenidas a partir de las pruebas realizadas con los módulos de videollamada desarrollados, que se resumen en la Tabla \ref{tab:resumen_pruebas_globales}. Estas pruebas abarcan diferentes condiciones de red, incluyendo variaciones en el ancho de banda, latencia, jitter y pérdida de paquetes. Los resultados obtenidos permiten evaluar el rendimiento y la robustez de cada módulo en situaciones diversas. Finalmente, se sugerirán posibles implementaciones futuras para mejorar el sistema existente y desarrollado en este trabajo.
 \subsection{Conclusiones generales}
 Las conclusiones que se pueden extraer de estas pruebas mostradas en la Tabla \ref{tab:resumen_pruebas_globales}, que abarcan diferentes condiciones y limitaciones de la red, son las siguientes:
 
@@ -36,7 +36,7 @@ Las conclusiones que se pueden extraer de estas pruebas mostradas en la Tabla \r
 Estas conclusiones indican que no hay un único módulo ``mejor'' para todas las situaciones.
 El módulo \textbf{\textit{Minimal\_Video}} es sencillo y funciona bien si la red es buena (alta capacidad, bajo retraso y pocas pérdidas).
 El módulo \textbf{\textit{Minimal\_Video\_FPS}} destaca por su capacidad de mantener una buena tasa de fotogramas cuando hay un retraso moderado en la red (como 100 ms).
-El módulo \textbf{\textit{Minimal\_Video\_Resolution}} también se adapta bien al retraso y el cambio de resolución es eficiente.
+El módulo \textbf{\textit{Minimal\_Video\_Resolution}} también responde bien al retraso dado y el cambio de resolución es eficiente.
 En condiciones de red muy malas (capacidad de 1 Mbps o pérdidas de paquetes del 25\% o más), todos los módulos fallan en proporcionar una comunicación efectiva. La elección del módulo dependerá del tipo de problema de red que se espere encontrar.
 
 \newpage
@@ -49,7 +49,7 @@ A partir del análisis de los resultados y las limitaciones observadas, en conju
 \begin{itemize}
 \item \textbf{Corrección de errores hacia adelante (FEC):} Implementar técnicas como FEC, donde se envía información redundante junto con los datos originales. Esto permitiría al receptor reconstruir algunos paquetes perdidos sin necesidad de pedirlos de nuevo, mejorando la fluidez del vídeo y audio cuando la red pierde paquetes~\cite{fec}.
 \end{itemize}
-\item \textbf{Adaptación más inteligente al ancho de banda disponible:}
+\item \textbf{Optimización más inteligente del ancho de banda disponible:}
 \begin{itemize}
     \item \textbf{Compresión de vídeo y audio más avanzada:} Aunque el proyecto se centra en módulos sin ningún tipo de compresión, la posible implementación de algoritmos de compresión de vídeo (como H.264, VP9)~\cite{h264} y audio (como Opus)~\cite{opus} podría reducir drásticamente la cantidad de datos necesarios, haciendo que la videollamada funcione mucho mejor con menos ancho de banda.
     \item \textbf{Ajuste dinámico de la calidad:} Desarrollar un sistema que mida continuamente la calidad de la red (ancho de banda, pérdida) y ajuste automáticamente la resolución del vídeo, los fotogramas por segundo (FPS) o el nivel de compresión para mantener la llamada lo más fluida posible. Por ejemplo, si la red empeora, podría reducir la calidad del vídeo para priorizar el audio.
@@ -62,7 +62,7 @@ A partir del análisis de los resultados y las limitaciones observadas, en conju
 
 \item \textbf{Mejor manejo del jitter:}
 \begin{itemize}
-    \item \textbf{Buffer de jitter adaptativo:} Implementar un pequeño buffer temporal en el lado del receptor que guarde los paquetes de vídeo por un corto periodo antes de mostrarlos. Si este buffer ajusta su tamaño dinámicamente según la variación del retraso, puede ayudar a que el vídeo y el audio se reproduzcan de forma más continua, aunque los paquetes llegan de forma irregular.
+    \item \textbf{Buffer de jitter variable:} Implementar un pequeño buffer temporal en el lado del receptor que guarde los paquetes de vídeo por un corto periodo antes de mostrarlos. Si este buffer ajusta su tamaño dinámicamente según la variación del retraso, puede ayudar a que el vídeo y el audio se reproduzcan de forma más continua, aunque los paquetes llegan de forma irregular.
 \end{itemize}
 
 \item \textbf{Nuevas funcionalidades y usabilidad:}
