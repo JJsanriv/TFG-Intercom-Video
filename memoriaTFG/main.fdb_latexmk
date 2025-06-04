@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex main"] 1749055159.17466 "main.aux" "main.bbl" "main" 1749055870.48371 0
-  "./referencias.bib" 1749054711.17307 4878 5b69391cff74d7e15c8547c62beedafe ""
+["bibtex main"] 1749056820.58436 "main.aux" "main.bbl" "main" 1749056829.00888 0
+  "./referencias.bib" 1749056800.00294 4890 6bddf012f77ba5f3e3b0a53b53206000 ""
   "/usr/share/texlive/texmf-dist/bibtex/bst/base/ieeetr.bst" 1292289607 18361 1a00e58565e7f19bf2b3e1bfb82254ae ""
-  "main.aux" 1749055870.02369 35833 e319c6d8ebfcdfe3409b38967e02fa63 "pdflatex"
+  "main.aux" 1749056828.5489 35833 25b17cbf615cd1bb6f69c0aac688a766 "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1749055861.73957 "/home/jj/Memoria-TFG/memoriaTFG/main.tex" "main.pdf" "main" 1749055870.48408 0
+["pdflatex"] 1749056820.62283 "/home/jj/Memoria-TFG/memoriaTFG/main.tex" "main.pdf" "main" 1749056829.00913 0
   "/etc/texmf/web2c/texmf.cnf" 1746477420.555 475 c0e671620eb5563b2130f56340a5fde8 ""
   "/home/jj/.texlive2023/texmf-var/fonts/pk/ljfour/jknappen/ec/eccc0900.600pk" 1748038299.69438 22404 e08fefc78f7cb655898388414314492e ""
   "/home/jj/.texlive2023/texmf-var/fonts/pk/ljfour/jknappen/ec/ecit0800.600pk" 1748333560.44147 19136 b5b6dd8c72b4d213149129577fe7e5bd ""
@@ -346,14 +346,14 @@
   "images/pruebas/ejecuion_normal_resolution.png" 1748942345.76117 552496 b5e76d2e4a83ca486c838e57a843d222 ""
   "images/uml.png" 1748362182.073 58149 0f683ce1569fc330ae3a562bf8a31ea0 ""
   "introduccion.tex" 1749054711.07907 17713 95a10edde89a8ad41c202fb143dfa821 ""
-  "main.aux" 1749055870.02369 35833 e319c6d8ebfcdfe3409b38967e02fa63 "pdflatex"
-  "main.bbl" 1749055159.2032 3366 24f833d1493bea7ea7c2668598f168cd "bibtex main"
-  "main.lof" 1749055870.03069 5412 7ff04f1fad6ab3462535b0d2719a5be6 "pdflatex"
-  "main.lol" 1749055870.03269 6346 3e9c172db1dab02dec10d9b4fb73593b "pdflatex"
-  "main.lot" 1749055870.03269 357 34da4909343912f335f081aaa65b8808 "pdflatex"
-  "main.out" 1749055870.03069 5974 fb7304de7da3f89f2bd6a66b83b37f8a "pdflatex"
+  "main.aux" 1749056828.5489 35833 25b17cbf615cd1bb6f69c0aac688a766 "pdflatex"
+  "main.bbl" 1749056820.60659 3503 7ce754b785642227df737c84980586dd "bibtex main"
+  "main.lof" 1749056828.5569 5412 7ff04f1fad6ab3462535b0d2719a5be6 "pdflatex"
+  "main.lol" 1749056828.5579 6346 3e9c172db1dab02dec10d9b4fb73593b "pdflatex"
+  "main.lot" 1749056828.5569 357 34da4909343912f335f081aaa65b8808 "pdflatex"
+  "main.out" 1749056828.5559 5974 fb7304de7da3f89f2bd6a66b83b37f8a "pdflatex"
   "main.tex" 1749035346.0371 5229 b31689486d3e8720fba59e1acee0b095 ""
-  "main.toc" 1749055870.03069 2743 ce7b3937c890300124be85f78928e866 "pdflatex"
+  "main.toc" 1749056828.5569 2743 ce7b3937c890300124be85f78928e866 "pdflatex"
   "metodologia.tex" 1749054895.64862 141730 118145de6ac9160a2546fe5f84ccfe69 ""
   "packages.tex" 1749054516.90978 3712 114471f0257ecacea28c5c69b676cc69 ""
   "resultados_y_discusion.tex" 1749055861.41689 210423 5686a0396912b558e586db81429ffaa4 ""
